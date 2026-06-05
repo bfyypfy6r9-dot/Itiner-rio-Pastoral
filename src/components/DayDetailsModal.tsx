@@ -54,7 +54,7 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
                         ev.type === 'Férias' ? "bg-blue-100 text-blue-800" :
                         ev.type === 'Desbravadores' ? "bg-emerald-100 text-emerald-800" :
                         ev.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
-                        ev.type === 'Comissão' ? "bg-cyan-100 text-cyan-800" :
+                        (ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') ? "bg-cyan-100 text-cyan-800" :
                         ev.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
                         ev.type === 'PG' ? "bg-orange-100 text-orange-800" :
                         "bg-rose-100 text-rose-800"}`}
@@ -69,11 +69,11 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
 
                   {(ev.type === 'Desbravadores' && ev.clubName) || 
                    (ev.type === 'Visitação' && ev.visitedName) || 
-                   (ev.type === 'Planejamento e Estudo' && ev.timeFrame) ? (
+                   ((ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') && ev.timeFrame) ? (
                     <div className="text-sm text-neutral-600 bg-white border border-neutral-100 px-3 py-2 rounded-lg mt-1">
                       {ev.type === 'Desbravadores' && <span className="block"><span className="font-medium">Desbravador:</span> {ev.clubName}</span>}
                       {ev.type === 'Visitação' && <span className="block"><span className="font-medium">Visitado:</span> {ev.visitedName}</span>}
-                      {ev.type === 'Planejamento e Estudo' && <span className="block"><span className="font-medium">Horário:</span> {ev.timeFrame}</span>}
+                      {(ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') && <span className="block"><span className="font-medium">Horário:</span> {ev.timeFrame}</span>}
                     </div>
                   ) : null}
                 </div>
