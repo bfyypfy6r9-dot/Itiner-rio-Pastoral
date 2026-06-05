@@ -55,7 +55,6 @@ service cloud.firestore {
         allow create: if isSignedIn() 
           && isOwner(userId) 
           && isValidId(eventId)
-          && exists(/databases/$(database)/documents/users/$(userId))
           && isValidEvent(incoming());
 
         allow update: if isSignedIn() 
