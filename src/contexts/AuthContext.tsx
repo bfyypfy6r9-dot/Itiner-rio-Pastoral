@@ -9,7 +9,6 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   resetDevices: () => Promise<void>;
-  mockLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,7 +16,6 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   logout: async () => {},
   resetDevices: async () => {},
-  mockLogin: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -25,10 +23,6 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const mockLogin = () => {
-    setUser({ id: 'mock-user-id', email: 'teste@itinerario.com', isMock: true });
-  };
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -140,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, resetDevices, mockLogin }}>
+    <AuthContext.Provider value={{ user, loading, logout, resetDevices }}>
       {children}
     </AuthContext.Provider>
   );
