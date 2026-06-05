@@ -53,7 +53,7 @@ export default function CalendarGrid({ currentDate, events, onDayClick }: Props)
                         (event.type === 'Pregação' ? "bg-amber-100 text-amber-800" :
                         event.type === 'Desbravadores' ? "bg-emerald-100 text-emerald-800" :
                         event.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
-                        event.type === 'Comissão' ? "bg-cyan-100 text-cyan-800" :
+                        (event.type === 'Comissão' || event.type === 'Comissão/Reunião') ? "bg-cyan-100 text-cyan-800" :
                         event.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
                         event.type === 'PG' ? "bg-orange-100 text-orange-800" :
                         "bg-rose-100 text-rose-800")}
