@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../lib/firebase';
+import { db, isFirebaseConfigured, auth } from '../lib/firebase';
 import { collection, doc, addDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { AppUser, EventType, PastelEvent } from '../types';
 import { format } from 'date-fns';
@@ -14,7 +14,7 @@ interface Props {
   onClose: (shouldReload?: boolean) => void;
 }
 
-const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG'];
+const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG'];
 
 interface EventFormState {
   _localId: string;
@@ -38,7 +38,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       setDayEvents(events.map(e => ({
         _localId: crypto.randomUUID(),
         id: e.id,
-        type: e.type,
+        type: e.type === 'Comissão' ? 'Comissão/Reunião' : e.type,
         local: e.local === 'FÉRIAS' && e.type !== 'Férias' ? '' : (e.local || ''),
         clubName: e.clubName || '',
         visitedName: e.visitedName || '',
@@ -98,12 +98,28 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSavingRef.current) return; // Prevent double clicks
+    
+    // Check validation first
+    const invalidEvents = dayEvents.filter(ev => {
+      if (!ev.isDeleted) {
+        if (!ev.local && !['Férias', 'Desbravadores'].includes(ev.type)) return true;
+        if (ev.type === 'Desbravadores' && !ev.clubName) return true;
+      }
+      return false;
+    });
+
+    if (invalidEvents.length > 0) {
+      alert('Por favor, preencha todos os campos obrigatórios (Igreja/Local ou Clube).');
+      return;
+    }
+
     isSavingRef.current = true;
     setSaving(true);
     let shouldReload = false;
 
     try {
       let mockAll = user.isMock ? JSON.parse(localStorage.getItem('mockEvents') || '[]') : [];
+      const firestorePromises: Promise<any>[] = [];
 
       for (const ev of dayEvents) {
         if (ev.isDeleted) {
@@ -111,17 +127,15 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
             if (user.isMock) {
               mockAll = mockAll.filter((me: any) => me.id !== ev.id);
               shouldReload = true;
-            } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
-              deleteDoc(doc(db, 'users', user.id, 'events', ev.id)).catch((e) => { console.warn(e); alert("Erro ao deletar: " + e.message); });
+            } else if (isFirebaseConfigured) {
+              const currentUid = auth.currentUser?.uid || user.id;
+              const docRef = doc(db, 'users', currentUid, 'events', ev.id);
+              firestorePromises.push(deleteDoc(docRef));
               shouldReload = true;
             }
           }
           continue;
         }
-
-        // Validação de preenchimento
-        if (!ev.local && !['Férias', 'Desbravadores'].includes(ev.type)) continue;
-        if (ev.type === 'Desbravadores' && !ev.clubName) continue;
 
         const isFerias = ev.type === 'Férias';
         const finalLocal = isFerias ? 'FÉRIAS' : ev.local;
@@ -139,7 +153,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
 
         if (ev.type === 'Desbravadores' && ev.clubName) eventData.clubName = ev.clubName;
         if (ev.type === 'Visitação' && ev.visitedName) eventData.visitedName = ev.visitedName;
-        if (ev.type === 'Planejamento e Estudo' && ev.timeFrame) eventData.timeFrame = ev.timeFrame;
+        if ((ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão/Reunião') && ev.timeFrame) eventData.timeFrame = ev.timeFrame;
 
         if (user.isMock) {
           const mockData = { ...eventData, id: ev.id || crypto.randomUUID() };
@@ -150,11 +164,15 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
             mockAll.push(mockData);
           }
           shouldReload = true;
-        } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
+        } else if (isFirebaseConfigured) {
+          const currentUid = auth.currentUser?.uid || user.id;
+          
           if (!ev.id) {
-            addDoc(collection(db, 'users', user.id, 'events'), eventData).catch(e => { console.warn("Firestore write error", e); alert("Erro ao salvar: " + e.message); });
+            const collRef = collection(db, 'users', currentUid, 'events');
+            firestorePromises.push(addDoc(collRef, eventData));
           } else {
-            setDoc(doc(db, 'users', user.id, 'events', ev.id), eventData).catch(e => { console.warn("Firestore write error", e); alert("Erro ao salvar: " + e.message); });
+            const docRef = doc(db, 'users', currentUid, 'events', ev.id);
+            firestorePromises.push(setDoc(docRef, eventData));
           }
           shouldReload = true;
         }
@@ -164,10 +182,17 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
         localStorage.setItem('mockEvents', JSON.stringify(mockAll));
       }
 
+      if (firestorePromises.length > 0) {
+        // Fire and forget, local cache will update instantly.
+        firestorePromises.forEach(p => p.catch(err => console.error("Firestore cache/sync error:", err)));
+        // Optional small delay just for smooth UI transition
+        await new Promise(r => setTimeout(r, 150));
+      }
+
       onClose(shouldReload);
     } catch (err: any) {
-      console.error(err);
-      alert('Ocorreu um erro ao salvar o evento: ' + (err.message || 'Erro desconhecido'));
+      console.error("Erro completo no handleSave:", err);
+      alert('Ocorreu um erro: ' + (err.message || 'Erro desconhecido. Verifique sua conexão e tente novamente.'));
     } finally {
       isSavingRef.current = false;
       setSaving(false);
@@ -266,7 +291,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                   </div>
                 )}
 
-                {ev.type === 'Planejamento e Estudo' && (
+                {(ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão/Reunião') && (
                   <div className="animate-in fade-in">
                     <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
                       Horário
