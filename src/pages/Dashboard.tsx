@@ -50,6 +50,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     // Load config
     const loadConfig = async () => {
       try {
+        if (!user.id) return;
         if (user.isMock) {
           const storedConfig = JSON.parse(localStorage.getItem('mockConfig') || '{"name":"","district":"","phone":""}');
           setConfig(storedConfig);
@@ -73,8 +74,9 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
 
   useEffect(() => {
     if (user.isMock) {
+      if (!user.id) return;
       fetchMockEvents();
-    } else if (isFirebaseConfigured) {
+    } else if (isFirebaseConfigured && user.id) {
       const q = query(collection(db, 'users', user.id, 'events'), where('userId', '==', user.id), where('month', '==', monthStr));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fbEvents: PastelEvent[] = [];
