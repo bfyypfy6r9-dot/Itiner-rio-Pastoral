@@ -112,7 +112,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
               mockAll = mockAll.filter((me: any) => me.id !== ev.id);
               shouldReload = true;
             } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
-              deleteDoc(doc(db, 'users', user.id, 'events', ev.id)).catch(() => {});
+              deleteDoc(doc(db, 'users', user.id, 'events', ev.id)).catch((e) => { console.warn(e); alert("Erro ao deletar: " + e.message); });
               shouldReload = true;
             }
           }
@@ -152,9 +152,9 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
           shouldReload = true;
         } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
           if (!ev.id) {
-            addDoc(collection(db, 'users', user.id, 'events'), eventData).catch(e => console.warn("Firestore write error", e));
+            addDoc(collection(db, 'users', user.id, 'events'), eventData).catch(e => { console.warn("Firestore write error", e); alert("Erro ao salvar: " + e.message); });
           } else {
-            setDoc(doc(db, 'users', user.id, 'events', ev.id), eventData).catch(e => console.warn("Firestore write error", e));
+            setDoc(doc(db, 'users', user.id, 'events', ev.id), eventData).catch(e => { console.warn("Firestore write error", e); alert("Erro ao salvar: " + e.message); });
           }
           shouldReload = true;
         }
