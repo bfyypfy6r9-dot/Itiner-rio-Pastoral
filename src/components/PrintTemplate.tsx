@@ -12,8 +12,25 @@ interface Props {
 export default function PrintTemplate({ currentDate, events, config, selectedTypes }: Props) {
   const groupEvents = (eventsToGroup: PastelEvent[]) => {
     const grouped = new Map();
-    eventsToGroup.forEach(e => {
-      const key = `${e.date}|${e.local}`;
+    
+    // Sort so events with local come first
+    const sortedForGrouping = [...eventsToGroup].sort((a, b) => {
+      if (a.local && !b.local) return -1;
+      if (!a.local && b.local) return 1;
+      return 0;
+    });
+
+    sortedForGrouping.forEach(e => {
+      let key = `${e.date}|${e.local}`;
+      
+      // se não tem local definido, tenta achar algum grupo no mesmo dia e atachar
+      if (!e.local) {
+         const existingKey = Array.from(grouped.keys()).find(k => k.startsWith(`${e.date}|`));
+         if (existingKey) {
+            key = existingKey;
+         }
+      }
+
       if (!grouped.has(key)) {
         grouped.set(key, {
           date: e.date,
@@ -37,6 +54,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
         group.timeFrames.add(e.timeFrame);
       }
     });
+
     return Array.from(grouped.values()).sort((a: any, b: any) => {
       const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
       if (timeDiff === 0) return a.createdAt - b.createdAt;
@@ -44,7 +62,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
     });
   };
 
-  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias'].includes(e.type)));
+  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type)));
   const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação'));
   const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão'));
   
@@ -75,7 +93,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       </div>
 
       {/* Table 1: Agenda Geral */}
-      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias')) && geralEvents.length > 0 && (
+      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('PG')) && geralEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">ESCALA DE PREGAÇÃO / VISITA DBV</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
