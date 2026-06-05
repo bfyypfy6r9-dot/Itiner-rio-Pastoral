@@ -55,7 +55,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       if (e.type === 'Visitação' && e.visitedName) {
         group.visitedNames.add(e.visitedName);
       }
-      if (e.type === 'Planejamento e Estudo' && e.timeFrame) {
+      if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
         group.timeFrames.add(e.timeFrame);
       }
     });
@@ -69,7 +69,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
 
   const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type)));
   const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação'));
-  const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão'));
+  const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' || e.type === 'Comissão/Reunião'));
   
   // Filtro Isolado Exclusivo
   const planejamentoEvents = events
@@ -150,14 +150,15 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       )}
 
       {/* Table 3: Comissões */}
-      {selectedTypes.includes('Comissão') && comissaoEvents.length > 0 && (
+      {selectedTypes.includes('Comissão/Reunião') && comissaoEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
-          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">COMISSÕES</h4>
+          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">COMISSÃO/REUNIÃO</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-black px-2 py-1.5 text-center w-1/2">DATA</th>
-                <th className="border border-black px-2 py-1.5 text-center w-1/2">IGREJA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-1/3">DATA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-1/3">LOCAL</th>
+                <th className="border border-black px-2 py-1.5 text-center w-1/3">HORÁRIO</th>
               </tr>
             </thead>
             <tbody>
@@ -165,6 +166,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
                 <tr key={`com-${index}`}>
                   <td className="border border-black px-2 py-1.5 text-center">{e.dateLabel}</td>
                   <td className="border border-black px-2 py-1.5 text-center font-medium">{e.local}</td>
+                  <td className="border border-black px-2 py-1.5 text-center">{Array.from(e.timeFrames).join(', ') || '-'}</td>
                 </tr>
               ))}
             </tbody>
