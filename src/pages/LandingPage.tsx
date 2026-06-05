@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { BookOpen, LogIn, Calendar, Lock, AlertTriangle } from 'lucide-react';
 import type { AppUser } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,35 +16,38 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { mockLogin } = useAuth();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const {  } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check for hardcoded mock credentials or fallback
-    if (email === 'admin@distrito.com' || password === '123456') {
-      mockLogin();
-      return;
-    }
 
     setLoading(true);
     setError('');
     try {
       if (!isFirebaseConfigured) {
-         mockLogin();
+         setError('Firebase não conectado.');
+         setLoading(false);
          return;
       }
-      await signInWithEmailAndPassword(auth, email, password);
+      
+      if (isRegistering) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
     } catch (err: any) {
       if (err.code === 'auth/operation-not-allowed') {
         setError('O login por E-mail/Senha não está habilitado. Por favor, habilite-o no Console do Firebase.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Este e-mail já está em uso.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('A senha deve ter pelo menos 6 caracteres.');
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
         setError('Senha ou login errado ou e-mail não cadastrado.');
       } else {
-        setError('Senha ou login errado ou e-mail não cadastrado. (' + (err.message || 'Erro') + ')');
+        setError('Erro de autenticação: ' + (err.message || 'Erro desconhecido'));
       }
-      // Se der erro, para facilitar o teste no prototype:
-      mockLogin();
       setLoading(false);
     }
   };
@@ -136,7 +139,7 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
             Acesso Restrito
           </h2>
           <p className="text-neutral-500 text-sm">
-            Entre com suas credenciais de administrador para acessar o painel de criação.
+            {isRegistering ? 'Crie sua conta para acessar o painel de criação.' : 'Entre com suas credenciais de administrador para acessar.'}
           </p>
         </div>
         
@@ -180,8 +183,18 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
             disabled={loading}
             className="w-full bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition-colors mt-2"
           >
-            {loading ? 'Autenticando...' : 'Entrar na Plataforma'}
+            {loading ? 'Autenticando...' : isRegistering ? 'Criar Conta' : 'Entrar na Plataforma'}
           </button>
+          
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {isRegistering ? 'Já tem uma conta? Entre aqui' : 'Não tem conta? Crie aqui'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
