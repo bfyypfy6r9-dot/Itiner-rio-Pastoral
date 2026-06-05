@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/firebase';
 import { collection, doc, addDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { AppUser, EventType, PastelEvent } from '../types';
@@ -14,7 +14,7 @@ interface Props {
   onClose: (shouldReload?: boolean) => void;
 }
 
-const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo'];
+const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG'];
 
 interface EventFormState {
   _localId: string;
@@ -31,6 +31,7 @@ interface EventFormState {
 export default function EventModal({ isOpen, date, events, user, onClose }: Props) {
   const [dayEvents, setDayEvents] = useState<EventFormState[]>([]);
   const [saving, setSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (events.length > 0) {
@@ -83,6 +84,9 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       } else if (field === 'type' && ev.type === 'Férias' && value !== 'Férias') {
         updated.local = '';
       }
+      if (field === 'type' && value === 'Desbravadores') {
+        updated.local = '';
+      }
       return updated;
     }));
   };
@@ -93,6 +97,8 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRef.current) return; // Prevent double clicks
+    isSavingRef.current = true;
     setSaving(true);
     let shouldReload = false;
 
@@ -106,23 +112,21 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
               mockAll = mockAll.filter((me: any) => me.id !== ev.id);
               shouldReload = true;
             } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
-              await deleteDoc(doc(db, 'events', ev.id));
+              deleteDoc(doc(db, 'users', user.id, 'events', ev.id)).catch(() => {});
               shouldReload = true;
             }
           }
           continue;
         }
 
-        // Se local estiver vazio e não for férias, ignoramos essa linha para salvar
-        if (!ev.local && ev.type !== 'Férias') {
-           continue; 
-        }
+        // Validação de preenchimento
+        if (!ev.local && !['Férias', 'Desbravadores'].includes(ev.type)) continue;
+        if (ev.type === 'Desbravadores' && !ev.clubName) continue;
 
         const isFerias = ev.type === 'Férias';
         const finalLocal = isFerias ? 'FÉRIAS' : ev.local;
 
-        const eventData: PastelEvent = {
-          id: ev.id,
+        const eventData: any = {
           userId: user.id,
           date: format(date, 'yyyy-MM-dd'),
           dateLabel: formatDateLabel(date),
@@ -130,27 +134,27 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
           month: format(date, 'yyyy-MM'),
           local: finalLocal,
           type: ev.type,
-          ...(ev.type === 'Desbravadores' && { clubName: ev.clubName }),
-          ...(ev.type === 'Visitação' && { visitedName: ev.visitedName }),
-          ...(ev.type === 'Planejamento e Estudo' && { timeFrame: ev.timeFrame }),
-          createdAt: ev.createdAt,
+          createdAt: ev.createdAt || Date.now(),
         };
 
+        if (ev.type === 'Desbravadores' && ev.clubName) eventData.clubName = ev.clubName;
+        if (ev.type === 'Visitação' && ev.visitedName) eventData.visitedName = ev.visitedName;
+        if (ev.type === 'Planejamento e Estudo' && ev.timeFrame) eventData.timeFrame = ev.timeFrame;
+
         if (user.isMock) {
-          if (eventData.id) {
-            const idx = mockAll.findIndex((me: any) => me.id === eventData.id);
-            if (idx >= 0) mockAll[idx] = eventData;
+          const mockData = { ...eventData, id: ev.id || crypto.randomUUID() };
+          if (ev.id) {
+            const idx = mockAll.findIndex((me: any) => me.id === ev.id);
+            if (idx >= 0) mockAll[idx] = mockData;
           } else {
-            eventData.id = crypto.randomUUID();
-            mockAll.push(eventData);
+            mockAll.push(mockData);
           }
           shouldReload = true;
         } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
-          if (!eventData.id) {
-            const docRef = await addDoc(collection(db, 'events'), eventData);
-            await updateDoc(docRef, { id: docRef.id });
+          if (!ev.id) {
+            addDoc(collection(db, 'users', user.id, 'events'), eventData).catch(e => console.warn("Firestore write error", e));
           } else {
-            await setDoc(doc(db, 'events', eventData.id), eventData);
+            setDoc(doc(db, 'users', user.id, 'events', ev.id), eventData).catch(e => console.warn("Firestore write error", e));
           }
           shouldReload = true;
         }
@@ -161,8 +165,11 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       }
 
       onClose(shouldReload);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert('Ocorreu um erro ao salvar o evento: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+      isSavingRef.current = false;
       setSaving(false);
     }
   };
@@ -212,20 +219,22 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
-                    Igreja / Local
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={ev.type === 'Férias'}
-                    value={ev.local}
-                    onChange={(e) => handleUpdateEvent(ev._localId, 'local', e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm text-neutral-700 disabled:bg-neutral-100 disabled:text-neutral-500"
-                    placeholder="Nome da igreja ou local"
-                  />
-                </div>
+                {ev.type !== 'Desbravadores' && (
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
+                      Igreja / Local
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={ev.type === 'Férias'}
+                      value={ev.local}
+                      onChange={(e) => handleUpdateEvent(ev._localId, 'local', e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm text-neutral-700 disabled:bg-neutral-100 disabled:text-neutral-500"
+                      placeholder="Nome da igreja ou local"
+                    />
+                  </div>
+                )}
 
                 {ev.type === 'Desbravadores' && (
                   <div className="animate-in fade-in">
