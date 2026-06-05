@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global lock
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function existing() { return resource.data; }
+    function incoming() { return request.resource.data; }
+    
+    // User validation
+    function isValidUserConfig(data) {
+      return data.keys().hasOnly(['name', 'district', 'phone', 'activeSessions'])
+        && ( !('name' in data) || (data.name is string && data.name.size() <= 100) )
+        && ( !('district' in data) || (data.district is string && data.district.size() <= 100) )
+        && ( !('phone' in data) || (data.phone is string && data.phone.size() <= 20) )
+        && ( !('activeSessions' in data) || (data.activeSessions is list && data.activeSessions.size() <= 10) );
+    }
+
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() 
+        && isOwner(userId) 
+        && isValidId(userId)
+        && isValidUserConfig(incoming());
+      allow update: if isSignedIn() 
+        && isOwner(userId)
+        && isValidUserConfig(incoming());
+      
+      // Events subcollection
+      match /events/{eventId} {
+        function isValidEvent(data) {
+          return data.keys().hasAny(['date', 'month', 'local', 'type', 'userId', 'createdAt'])
+            && data.keys().hasOnly(['date', 'dateLabel', 'dayOfWeek', 'month', 'local', 'type', 'clubName', 'userId', 'createdAt'])
+            && data.userId == request.auth.uid
+            && data.date is string && data.date.size() <= 10
+            && data.month is string && data.month.size() <= 7
+            && data.local is string && data.local.size() <= 150
+            && data.type is string && data.type in ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias']
+            && (!('clubName' in data) || (data.clubName is string && data.clubName.size() <= 150))
+            && data.createdAt is number;
+        }
+
+        allow get, list: if isSignedIn() && isOwner(userId) && existing().userId == request.auth.uid;
+        
+        allow create: if isSignedIn() 
+          && isOwner(userId) 
+          && isValidId(eventId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidEvent(incoming());
+
+        allow update: if isSignedIn() 
+          && isOwner(userId)
+          && existing().userId == request.auth.uid
+          && isValidEvent(incoming());
+
+        allow delete: if isSignedIn() && isOwner(userId) && existing().userId == request.auth.uid;
+      }
+    }
+  }
+}

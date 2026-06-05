@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Pastor's Name" },
+        "district": { "type": "string", "description": "District" },
+        "phone": { "type": "string" }
+      }
+    },
+    "Event": {
+      "title": "Event",
+      "description": "An itinerary event",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "Date format YYYY-MM-DD" },
+        "dateLabel": { "type": "string", "description": "e.g., 01/07" },
+        "dayOfWeek": { "type": "string", "description": "e.g., Quarta" },
+        "month": { "type": "string", "description": "YYYY-MM format for filtering" },
+        "local": { "type": "string" },
+        "type": { "type": "string", "enum": ["Pregação", "Desbravadores", "Visitação", "Comissão", "Férias"] },
+        "clubName": { "type": "string", "description": "Used only if type is Desbravadores" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number", "description": "Server timestamp" }
+      },
+      "required": ["date", "month", "local", "type", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user configuration"
+    },
+    "/users/{userId}/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Stores events per user"
+    }
+  }
+}
