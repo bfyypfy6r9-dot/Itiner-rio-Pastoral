@@ -37,20 +37,10 @@ service cloud.firestore {
       // Events subcollection
       match /events/{eventId} {
         function isValidEvent(data) {
-          return data.keys().hasAny(['date', 'month', 'local', 'type', 'userId', 'createdAt'])
-            && data.keys().hasOnly(['date', 'dateLabel', 'dayOfWeek', 'month', 'local', 'type', 'clubName', 'visitedName', 'timeFrame', 'userId', 'createdAt'])
-            && data.userId == request.auth.uid
-            && data.date is string && data.date.size() <= 10
-            && data.month is string && data.month.size() <= 7
-            && data.local is string && data.local.size() <= 150
-            && data.type is string && data.type in ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG']
-            && (!('clubName' in data) || (data.clubName is string && data.clubName.size() <= 150))
-            && (!('visitedName' in data) || (data.visitedName is string && data.visitedName.size() <= 150))
-            && (!('timeFrame' in data) || (data.timeFrame is string && data.timeFrame.size() <= 150))
-            && data.createdAt is number;
+          return data.userId == request.auth.uid;
         }
 
-        allow get, list: if isSignedIn() && isOwner(userId) && existing().userId == request.auth.uid;
+        allow get, list: if isSignedIn() && isOwner(userId);
         
         allow create: if isSignedIn() 
           && isOwner(userId) 
@@ -59,10 +49,9 @@ service cloud.firestore {
 
         allow update: if isSignedIn() 
           && isOwner(userId)
-          && existing().userId == request.auth.uid
           && isValidEvent(incoming());
 
-        allow delete: if isSignedIn() && isOwner(userId) && existing().userId == request.auth.uid;
+        allow delete: if isSignedIn() && isOwner(userId);
       }
     }
   }
