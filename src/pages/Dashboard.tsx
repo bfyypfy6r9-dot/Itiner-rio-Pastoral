@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { AppUser, EventType, PastelEvent, PastorConfig } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -15,7 +15,7 @@ import DayDetailsModal from '../components/DayDetailsModal';
 export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'calendar' | 'pdf' | 'view'>('calendar');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo'];
+  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG'];
   const [selectedTypes, setSelectedTypes] = useState<EventType[]>(ALL_EVENT_TYPES);
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -38,26 +38,11 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
 
   const monthStr = format(currentDate, 'yyyy-MM');
 
-  const fetchEvents = async () => {
-    try {
-      if (user.isMock) {
-        const storedEvents = JSON.parse(localStorage.getItem('mockEvents') || '[]');
-        setEvents(storedEvents.filter((e: PastelEvent) => e.month === monthStr));
-      } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
-        const q = query(collection(db, 'events'), where('userId', '==', user.id), where('month', '==', monthStr));
-        const querySnapshot = await getDocs(q);
-        const fbEvents: PastelEvent[] = [];
-        querySnapshot.forEach((doc) => {
-          fbEvents.push(doc.data() as PastelEvent);
-        });
-        setEvents(fbEvents);
-      }
-    } catch (err: any) {
-      if (err.message && err.message.includes('offline')) {
-        console.warn("Firebase is offline, could not fetch events.");
-      } else {
-        console.error(err);
-      }
+  // Trigger manual load for mock mode
+  const fetchMockEvents = () => {
+    if (user.isMock) {
+      const storedEvents = JSON.parse(localStorage.getItem('mockEvents') || '[]');
+      setEvents(storedEvents.filter((e: PastelEvent) => e.month === monthStr));
     }
   };
 
@@ -87,7 +72,32 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
   }, [user.id, user.isMock]);
 
   useEffect(() => {
-    fetchEvents();
+    if (user.isMock) {
+      fetchMockEvents();
+    } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
+      const q = query(collection(db, 'users', user.id, 'events'), where('userId', '==', user.id), where('month', '==', monthStr));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fbEvents: PastelEvent[] = [];
+        querySnapshot.forEach((doc) => {
+          fbEvents.push({ ...doc.data(), id: doc.id } as PastelEvent);
+        });
+        setEvents(fbEvents);
+        
+        // Update modal selections if they are open so we see realtime updates instantly
+        if (selectedDate) {
+           const existingStr = format(selectedDate, 'yyyy-MM-dd');
+           setSelectedEvents(fbEvents.filter(e => e.date === existingStr));
+        }
+        if (selectedViewDate) {
+           const existingStr = format(selectedViewDate, 'yyyy-MM-dd');
+           setSelectedViewEvents(fbEvents.filter(e => e.date === existingStr));
+        }
+      }, (err) => {
+        console.warn("Firebase listener error/offline:", err);
+      });
+      
+      return () => unsubscribe();
+    }
   }, [user.id, monthStr, user.isMock]);
 
   const saveConfig = async (newConfig: PastorConfig) => {
@@ -125,8 +135,23 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     // Agrupamento para não repetir dias na mesma igreja
     const groupEvents = (eventsToGroup: PastelEvent[]) => {
       const grouped = new Map();
-      eventsToGroup.forEach(e => {
-        const key = `${e.date}|${e.local}`;
+
+      const sortedForGrouping = [...eventsToGroup].sort((a, b) => {
+        if (a.local && !b.local) return -1;
+        if (!a.local && b.local) return 1;
+        return 0;
+      });
+
+      sortedForGrouping.forEach(e => {
+        let key = `${e.date}|${e.local}`;
+        
+        if (!e.local) {
+           const existingKey = Array.from(grouped.keys()).find(k => k.startsWith(`${e.date}|`));
+           if (existingKey) {
+              key = existingKey;
+           }
+        }
+
         if (!grouped.has(key)) {
           grouped.set(key, {
             date: e.date,
@@ -157,7 +182,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       });
     };
 
-    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias'].includes(e.type) && selectedTypes.includes(e.type)));
+    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
     const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação' && selectedTypes.includes(e.type)));
     const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' && selectedTypes.includes(e.type)));
     
@@ -192,7 +217,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     finalY += 10;
 
     // Tabela 1: Geral
-    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias');
+    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('PG');
     if (showTabelaGeral && geralEvents.length > 0) {
       doc.setFontSize(12);
       doc.setFont("times", "bold");
