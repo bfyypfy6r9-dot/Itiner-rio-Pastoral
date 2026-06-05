@@ -108,8 +108,9 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
         await setDoc(doc(db, 'users', user.id), { id: user.id, ...newConfig }, { merge: true });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Erro ao salvar configuração: " + (err?.message || "Erro desconhecido"));
     }
   };
 
@@ -137,15 +138,21 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       const grouped = new Map();
 
       const sortedForGrouping = [...eventsToGroup].sort((a, b) => {
+        // Prioritize events that have a local, and prioritize Pregação over others
+        if (a.type === 'Pregação' && b.type !== 'Pregação') return -1;
+        if (b.type === 'Pregação' && a.type !== 'Pregação') return 1;
         if (a.local && !b.local) return -1;
         if (!a.local && b.local) return 1;
         return 0;
       });
 
       sortedForGrouping.forEach(e => {
-        let key = `${e.date}|${e.local}`;
+        // Use clean string for grouping to avoid space mismatch
+        const safeLocal = (e.local || '').trim();
+        let key = `${e.date}|${safeLocal.toLowerCase()}`;
         
-        if (!e.local) {
+        // se é desbravadores, tenta sempre atrelar ao primeiro evento do dia (preferencialmente pregação)
+        if (e.type === 'Desbravadores' || !safeLocal) {
            const existingKey = Array.from(grouped.keys()).find(k => k.startsWith(`${e.date}|`));
            if (existingKey) {
               key = existingKey;
