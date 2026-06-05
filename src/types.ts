@@ -1,4 +1,4 @@
-export type EventType = 'Pregação' | 'Desbravadores' | 'Visitação' | 'Comissão' | 'Férias' | 'Planejamento e Estudo' | 'PG';
+export type EventType = 'Pregação' | 'Desbravadores' | 'Visitação' | 'Comissão' | 'Comissão/Reunião' | 'Férias' | 'Planejamento e Estudo' | 'PG';
 
 export interface PastorConfig {
   name: string;
