@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
+import { db, isFirebaseConfigured } from '../lib/firebase';
 import { collection, query, where, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { AppUser, EventType, PastelEvent, PastorConfig } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -15,7 +15,7 @@ import DayDetailsModal from '../components/DayDetailsModal';
 export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'calendar' | 'pdf' | 'view'>('calendar');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG'];
+  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG'];
   const [selectedTypes, setSelectedTypes] = useState<EventType[]>(ALL_EVENT_TYPES);
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -53,7 +53,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
         if (user.isMock) {
           const storedConfig = JSON.parse(localStorage.getItem('mockConfig') || '{"name":"","district":"","phone":""}');
           setConfig(storedConfig);
-        } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
+        } else if (isFirebaseConfigured) {
           const docRef = doc(db, 'users', user.id);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
@@ -74,7 +74,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
   useEffect(() => {
     if (user.isMock) {
       fetchMockEvents();
-    } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
+    } else if (isFirebaseConfigured) {
       const q = query(collection(db, 'users', user.id, 'events'), where('userId', '==', user.id), where('month', '==', monthStr));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fbEvents: PastelEvent[] = [];
@@ -105,7 +105,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     try {
       if (user.isMock) {
         localStorage.setItem('mockConfig', JSON.stringify(newConfig));
-      } else if (import.meta.env.VITE_FIREBASE_API_KEY) {
+      } else if (isFirebaseConfigured) {
         await setDoc(doc(db, 'users', user.id), { id: user.id, ...newConfig }, { merge: true });
       }
     } catch (err: any) {
@@ -178,7 +178,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
         if (e.type === 'Visitação' && e.visitedName) {
           group.visitedNames.add(e.visitedName);
         }
-        if (e.type === 'Planejamento e Estudo' && e.timeFrame) {
+        if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
           group.timeFrames.add(e.timeFrame);
         }
       });
@@ -191,7 +191,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
 
     const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
     const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação' && selectedTypes.includes(e.type)));
-    const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' && selectedTypes.includes(e.type)));
+    const comissaoEvents = groupEvents(events.filter(e => (e.type === 'Comissão' || e.type === 'Comissão/Reunião') && selectedTypes.includes('Comissão/Reunião')));
     
     // Filtro Isolado Exclusivo
     const planejamentoEvents = events
@@ -285,18 +285,19 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     }
 
     // Tabela 3: Comissões
-    if (selectedTypes.includes('Comissão') && comissaoEvents.length > 0) {
+    if (selectedTypes.includes('Comissão/Reunião') && comissaoEvents.length > 0) {
        doc.setFontSize(12);
        doc.setFont("times", "bold");
-       doc.text("COMISSÕES", centerX, finalY, { align: 'center' });
+       doc.text("COMISSÃO/REUNIÃO", centerX, finalY, { align: 'center' });
        finalY += 5;
 
        autoTable(doc, {
          startY: finalY,
-         head: [['DATA', 'IGREJA']],
+         head: [['DATA', 'LOCAL', 'HORÁRIO']],
          body: comissaoEvents.map((e: any) => [
            e.dateLabel,
-           e.local
+           e.local,
+           Array.from(e.timeFrames).join(', ') || '-'
          ]),
          theme: 'grid',
          headStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: 'bold', halign: 'center', valign: 'middle', font: 'times' },
@@ -304,8 +305,9 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
          margin: { left: ptLeft, right: ptRight },
          tableWidth: usableWidth,
          columnStyles: {
-           0: { cellWidth: usableWidth / 2 },
-           1: { cellWidth: usableWidth / 2 }
+           0: { cellWidth: usableWidth / 3 },
+           1: { cellWidth: usableWidth / 3 },
+           2: { cellWidth: usableWidth / 3 }
          }
        });
        finalY = (doc as any).lastAutoTable.finalY + 10;
