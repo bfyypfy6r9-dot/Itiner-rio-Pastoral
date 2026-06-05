@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     // Helper functions
-    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return request.auth.uid == userId; }
     function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function existing() { return resource.data; }
@@ -15,11 +15,13 @@ service cloud.firestore {
     
     // User validation
     function isValidUserConfig(data) {
-      return data.keys().hasOnly(['name', 'district', 'phone', 'activeSessions'])
+      return data.keys().hasOnly(['name', 'district', 'phone', 'activeSessions', 'id', 'customMessage'])
         && ( !('name' in data) || (data.name is string && data.name.size() <= 100) )
         && ( !('district' in data) || (data.district is string && data.district.size() <= 100) )
         && ( !('phone' in data) || (data.phone is string && data.phone.size() <= 20) )
-        && ( !('activeSessions' in data) || (data.activeSessions is list && data.activeSessions.size() <= 10) );
+        && ( !('activeSessions' in data) || (data.activeSessions is list && data.activeSessions.size() <= 10) )
+        && ( !('id' in data) || (data.id is string && data.id.size() <= 128) )
+        && ( !('customMessage' in data) || (data.customMessage is string && data.customMessage.size() <= 1000) );
     }
 
     match /users/{userId} {
@@ -36,13 +38,15 @@ service cloud.firestore {
       match /events/{eventId} {
         function isValidEvent(data) {
           return data.keys().hasAny(['date', 'month', 'local', 'type', 'userId', 'createdAt'])
-            && data.keys().hasOnly(['date', 'dateLabel', 'dayOfWeek', 'month', 'local', 'type', 'clubName', 'userId', 'createdAt'])
+            && data.keys().hasOnly(['date', 'dateLabel', 'dayOfWeek', 'month', 'local', 'type', 'clubName', 'visitedName', 'timeFrame', 'userId', 'createdAt'])
             && data.userId == request.auth.uid
             && data.date is string && data.date.size() <= 10
             && data.month is string && data.month.size() <= 7
             && data.local is string && data.local.size() <= 150
-            && data.type is string && data.type in ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias']
+            && data.type is string && data.type in ['Pregação', 'Desbravadores', 'Visitação', 'Comissão', 'Férias', 'Planejamento e Estudo', 'PG']
             && (!('clubName' in data) || (data.clubName is string && data.clubName.size() <= 150))
+            && (!('visitedName' in data) || (data.visitedName is string && data.visitedName.size() <= 150))
+            && (!('timeFrame' in data) || (data.timeFrame is string && data.timeFrame.size() <= 150))
             && data.createdAt is number;
         }
 
