@@ -56,6 +56,7 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
                         ev.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
                         ev.type === 'Comissão' ? "bg-cyan-100 text-cyan-800" :
                         ev.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
+                        ev.type === 'PG' ? "bg-orange-100 text-orange-800" :
                         "bg-rose-100 text-rose-800"}`}
                     >
                       {ev.type}
