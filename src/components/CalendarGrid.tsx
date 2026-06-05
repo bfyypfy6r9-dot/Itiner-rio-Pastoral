@@ -46,8 +46,8 @@ export default function CalendarGrid({ currentDate, events, onDayClick }: Props)
               </div>
               
               <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto w-full no-scrollbar">
-                {dayEvents.map((event) => (
-                  <div key={event.id} className="bg-neutral-50 border border-neutral-100 rounded-md p-1.5">
+                {dayEvents.map((event, idx) => (
+                  <div key={event.id || idx} className="bg-neutral-50 border border-neutral-100 rounded-md p-1.5">
                     <div className="flex items-center justify-between mb-0.5">
                       <div className={"text-[9px] uppercase font-bold tracking-wide rounded-sm px-1 py-0 w-fit " + 
                         (event.type === 'Pregação' ? "bg-amber-100 text-amber-800" :
@@ -55,6 +55,7 @@ export default function CalendarGrid({ currentDate, events, onDayClick }: Props)
                         event.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
                         event.type === 'Comissão' ? "bg-cyan-100 text-cyan-800" :
                         event.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
+                        event.type === 'PG' ? "bg-orange-100 text-orange-800" :
                         "bg-rose-100 text-rose-800")}
                       >
                         {event.type}
