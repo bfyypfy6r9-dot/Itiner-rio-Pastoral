@@ -579,7 +579,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
           user={user}
           onClose={(shouldReload) => {
             setIsModalOpen(false);
-            if (shouldReload) fetchEvents();
+            if (shouldReload && user.isMock) fetchMockEvents();
           }}
         />
       )}
