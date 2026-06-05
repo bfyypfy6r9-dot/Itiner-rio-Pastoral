@@ -16,7 +16,6 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
   const {  } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -31,18 +30,10 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
          return;
       }
       
-      if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       if (err.code === 'auth/operation-not-allowed') {
         setError('O login por E-mail/Senha não está habilitado. Por favor, habilite-o no Console do Firebase.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Este e-mail já está em uso.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('A senha deve ter pelo menos 6 caracteres.');
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
         setError('Senha ou login errado ou e-mail não cadastrado.');
       } else {
@@ -139,7 +130,7 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
             Acesso Restrito
           </h2>
           <p className="text-neutral-500 text-sm">
-            {isRegistering ? 'Crie sua conta para acessar o painel de criação.' : 'Entre com suas credenciais de administrador para acessar.'}
+            Entre com suas credenciais de administrador para acessar.
           </p>
         </div>
         
@@ -183,18 +174,8 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
             disabled={loading}
             className="w-full bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition-colors mt-2"
           >
-            {loading ? 'Autenticando...' : isRegistering ? 'Criar Conta' : 'Entrar na Plataforma'}
+            {loading ? 'Autenticando...' : 'Entrar na Plataforma'}
           </button>
-          
-          <div className="text-center mt-4">
-            <button
-              type="button"
-              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {isRegistering ? 'Já tem uma conta? Entre aqui' : 'Não tem conta? Crie aqui'}
-            </button>
-          </div>
         </form>
       </div>
     </div>
