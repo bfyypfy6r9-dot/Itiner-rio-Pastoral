@@ -39,7 +39,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
         _localId: crypto.randomUUID(),
         id: e.id,
         type: e.type === 'Comissão' ? 'Comissão/Reunião' : e.type,
-        local: (e.local === 'FÉRIAS' && e.type !== 'Férias') || (e.local === 'CONCÍLIO' && e.type !== 'Concílio') ? '' : (e.local || ''),
+        local: (e.local === 'FÉRIAS' && e.type !== 'Férias') || (e.local === 'CONCÍLIO' && e.type !== 'Concílio') || (e.local === 'FAMILIA' && e.type !== 'Família') ? '' : (e.local || ''),
         clubName: e.clubName || '',
         visitedName: e.visitedName || '',
         timeFrame: e.timeFrame || '',
@@ -83,7 +83,9 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
         updated.local = 'FÉRIAS';
       } else if (field === 'type' && value === 'Concílio') {
         updated.local = 'CONCÍLIO';
-      } else if (field === 'type' && (ev.type === 'Férias' || ev.type === 'Concílio') && value !== 'Férias' && value !== 'Concílio') {
+      } else if (field === 'type' && value === 'Família') {
+        updated.local = 'FAMILIA';
+      } else if (field === 'type' && (ev.type === 'Férias' || ev.type === 'Concílio' || ev.type === 'Família') && value !== 'Férias' && value !== 'Concílio' && value !== 'Família') {
         updated.local = '';
       }
       if (field === 'type' && value === 'Desbravadores') {
@@ -104,7 +106,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
     // Check validation first
     const invalidEvents = dayEvents.filter(ev => {
       if (!ev.isDeleted) {
-        if (!ev.local && !['Férias', 'Concílio', 'Desbravadores'].includes(ev.type)) return true;
+        if (!ev.local && !['Férias', 'Concílio', 'Família', 'Desbravadores'].includes(ev.type)) return true;
         if (ev.type === 'Desbravadores' && !ev.clubName) return true;
       }
       return false;
@@ -139,7 +141,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
           continue;
         }
 
-        const finalLocal = ev.type === 'Férias' ? 'FÉRIAS' : ev.type === 'Concílio' ? 'CONCÍLIO' : ev.local;
+        const finalLocal = ev.type === 'Férias' ? 'FÉRIAS' : ev.type === 'Concílio' ? 'CONCÍLIO' : ev.type === 'Família' ? 'FAMILIA' : ev.local;
 
         const eventData: any = {
           userId: user.id,
@@ -253,7 +255,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                     <input
                       type="text"
                       required
-                      disabled={ev.type === 'Férias' || ev.type === 'Concílio'}
+                      disabled={ev.type === 'Férias' || ev.type === 'Concílio' || ev.type === 'Família'}
                       value={ev.local}
                       onChange={(e) => handleUpdateEvent(ev._localId, 'local', e.target.value)}
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm text-neutral-700 disabled:bg-neutral-100 disabled:text-neutral-500"
