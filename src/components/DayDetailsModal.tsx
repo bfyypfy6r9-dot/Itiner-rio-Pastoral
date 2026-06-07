@@ -51,13 +51,15 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
                   <div className="flex justify-between items-start">
                     <span className={`px-2.5 py-1 rounded-md text-xs font-semibold
                       ${ev.type === 'Pregação' ? "bg-amber-100 text-amber-800" :
-                        ev.type === 'Férias' ? "bg-blue-100 text-blue-800" :
+                        (ev.type === 'Férias' || ev.type === 'Concílio') ? "bg-blue-100 text-blue-800" :
                         ev.type === 'Desbravadores' ? "bg-emerald-100 text-emerald-800" :
                         ev.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
                         (ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') ? "bg-cyan-100 text-cyan-800" :
                         ev.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
                         ev.type === 'PG' ? "bg-orange-100 text-orange-800" :
-                        "bg-rose-100 text-rose-800"}`}
+                        ev.type === 'Aventureiros' ? "bg-emerald-100 text-emerald-800" :
+                        ev.type === 'Santa ceia' ? "bg-rose-100 text-rose-800" :
+                        "bg-neutral-100 text-neutral-800"}`}
                     >
                       {ev.type}
                     </span>
