@@ -15,7 +15,7 @@ import DayDetailsModal from '../components/DayDetailsModal';
 export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'calendar' | 'pdf' | 'view'>('calendar');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG'];
+  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG', 'Aventureiros', 'Santa ceia', 'PGP', 'Concílio', 'Família'];
   const [selectedTypes, setSelectedTypes] = useState<EventType[]>(ALL_EVENT_TYPES);
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -170,6 +170,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
             clubNames: new Set<string>(),
             visitedNames: new Set<string>(),
             timeFrames: new Set<string>(),
+            types: new Set<string>(),
             createdAt: e.createdAt,
           });
         }
@@ -183,6 +184,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
         if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
           group.timeFrames.add(e.timeFrame);
         }
+        group.types.add(e.type);
       });
       return Array.from(grouped.values()).sort((a: any, b: any) => {
         const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -191,7 +193,11 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       });
     };
 
-    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
+    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'Concílio', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
+    const aventureirosEvents = groupEvents(events.filter(e => e.type === 'Aventureiros' && selectedTypes.includes(e.type)));
+    const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa ceia' && selectedTypes.includes(e.type)));
+    const pgpEvents = groupEvents(events.filter(e => e.type === 'PGP' && selectedTypes.includes(e.type)));
+    const familiaEvents = groupEvents(events.filter(e => e.type === 'Família' && selectedTypes.includes(e.type)));
     const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação' && selectedTypes.includes(e.type)));
     const comissaoEvents = groupEvents(events.filter(e => (e.type === 'Comissão' || e.type === 'Comissão/Reunião') && selectedTypes.includes('Comissão/Reunião')));
     
@@ -226,7 +232,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     finalY += 10;
 
     // Tabela 1: Geral
-    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('PG');
+    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG');
     if (showTabelaGeral && geralEvents.length > 0) {
       doc.setFontSize(12);
       doc.setFont("times", "bold");
@@ -255,6 +261,114 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
         }
       });
       finalY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Tabela: Família
+    if (selectedTypes.includes('Família') && familiaEvents.length > 0) {
+       doc.setFontSize(12);
+       doc.setFont("times", "bold");
+       doc.text("FAMÍLIA", centerX, finalY, { align: 'center' });
+       finalY += 5;
+
+       autoTable(doc, {
+         startY: finalY,
+         head: [['DATA', 'IGREJA / LOCAL']],
+         body: familiaEvents.map((e: any) => [
+           e.dateLabel,
+           e.local
+         ]),
+         theme: 'grid',
+         headStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: 'bold', halign: 'center', valign: 'middle', font: 'times' },
+         styles: { fontSize: 12, cellPadding: 3, textColor: 0, halign: 'center', valign: 'middle', font: 'times' },
+         margin: { left: ptLeft, right: ptRight },
+         tableWidth: usableWidth,
+         columnStyles: {
+           0: { cellWidth: usableWidth * 0.3 },
+           1: { cellWidth: usableWidth * 0.7 }
+         }
+       });
+       finalY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Tabela: PGP
+    if (selectedTypes.includes('PGP') && pgpEvents.length > 0) {
+       doc.setFontSize(12);
+       doc.setFont("times", "bold");
+       doc.text("PGP", centerX, finalY, { align: 'center' });
+       finalY += 5;
+
+       autoTable(doc, {
+         startY: finalY,
+         head: [['DATA', 'IGREJA / LOCAL']],
+         body: pgpEvents.map((e: any) => [
+           e.dateLabel,
+           e.local
+         ]),
+         theme: 'grid',
+         headStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: 'bold', halign: 'center', valign: 'middle', font: 'times' },
+         styles: { fontSize: 12, cellPadding: 3, textColor: 0, halign: 'center', valign: 'middle', font: 'times' },
+         margin: { left: ptLeft, right: ptRight },
+         tableWidth: usableWidth,
+         columnStyles: {
+           0: { cellWidth: usableWidth * 0.3 },
+           1: { cellWidth: usableWidth * 0.7 }
+         }
+       });
+       finalY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Tabela: Aventureiros
+    if (selectedTypes.includes('Aventureiros') && aventureirosEvents.length > 0) {
+       doc.setFontSize(12);
+       doc.setFont("times", "bold");
+       doc.text("AVENTUREIROS", centerX, finalY, { align: 'center' });
+       finalY += 5;
+
+       autoTable(doc, {
+         startY: finalY,
+         head: [['DATA', 'IGREJA / LOCAL']],
+         body: aventureirosEvents.map((e: any) => [
+           e.dateLabel,
+           e.local
+         ]),
+         theme: 'grid',
+         headStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: 'bold', halign: 'center', valign: 'middle', font: 'times' },
+         styles: { fontSize: 12, cellPadding: 3, textColor: 0, halign: 'center', valign: 'middle', font: 'times' },
+         margin: { left: ptLeft, right: ptRight },
+         tableWidth: usableWidth,
+         columnStyles: {
+           0: { cellWidth: usableWidth * 0.3 },
+           1: { cellWidth: usableWidth * 0.7 }
+         }
+       });
+       finalY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Tabela: Santa ceia
+    if (selectedTypes.includes('Santa ceia') && santaCeiaEvents.length > 0) {
+       doc.setFontSize(12);
+       doc.setFont("times", "bold");
+       doc.text("SANTA CEIA", centerX, finalY, { align: 'center' });
+       finalY += 5;
+
+       autoTable(doc, {
+         startY: finalY,
+         head: [['DATA', 'IGREJA / LOCAL']],
+         body: santaCeiaEvents.map((e: any) => [
+           e.dateLabel,
+           e.local
+         ]),
+         theme: 'grid',
+         headStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: 'bold', halign: 'center', valign: 'middle', font: 'times' },
+         styles: { fontSize: 12, cellPadding: 3, textColor: 0, halign: 'center', valign: 'middle', font: 'times' },
+         margin: { left: ptLeft, right: ptRight },
+         tableWidth: usableWidth,
+         columnStyles: {
+           0: { cellWidth: usableWidth * 0.3 },
+           1: { cellWidth: usableWidth * 0.7 }
+         }
+       });
+       finalY = (doc as any).lastAutoTable.finalY + 10;
     }
 
     // Tabela 2: Visitação
