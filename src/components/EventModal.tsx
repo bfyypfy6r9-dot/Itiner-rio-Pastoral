@@ -14,7 +14,7 @@ interface Props {
   onClose: (shouldReload?: boolean) => void;
 }
 
-const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG'];
+const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG', 'Aventureiros', 'Santa ceia', 'PGP', 'Concílio', 'Família'];
 
 interface EventFormState {
   _localId: string;
@@ -39,7 +39,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
         _localId: crypto.randomUUID(),
         id: e.id,
         type: e.type === 'Comissão' ? 'Comissão/Reunião' : e.type,
-        local: e.local === 'FÉRIAS' && e.type !== 'Férias' ? '' : (e.local || ''),
+        local: (e.local === 'FÉRIAS' && e.type !== 'Férias') || (e.local === 'CONCÍLIO' && e.type !== 'Concílio') ? '' : (e.local || ''),
         clubName: e.clubName || '',
         visitedName: e.visitedName || '',
         timeFrame: e.timeFrame || '',
@@ -81,7 +81,9 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       const updated = { ...ev, [field]: value };
       if (field === 'type' && value === 'Férias') {
         updated.local = 'FÉRIAS';
-      } else if (field === 'type' && ev.type === 'Férias' && value !== 'Férias') {
+      } else if (field === 'type' && value === 'Concílio') {
+        updated.local = 'CONCÍLIO';
+      } else if (field === 'type' && (ev.type === 'Férias' || ev.type === 'Concílio') && value !== 'Férias' && value !== 'Concílio') {
         updated.local = '';
       }
       if (field === 'type' && value === 'Desbravadores') {
@@ -102,7 +104,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
     // Check validation first
     const invalidEvents = dayEvents.filter(ev => {
       if (!ev.isDeleted) {
-        if (!ev.local && !['Férias', 'Desbravadores'].includes(ev.type)) return true;
+        if (!ev.local && !['Férias', 'Concílio', 'Desbravadores'].includes(ev.type)) return true;
         if (ev.type === 'Desbravadores' && !ev.clubName) return true;
       }
       return false;
@@ -137,8 +139,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
           continue;
         }
 
-        const isFerias = ev.type === 'Férias';
-        const finalLocal = isFerias ? 'FÉRIAS' : ev.local;
+        const finalLocal = ev.type === 'Férias' ? 'FÉRIAS' : ev.type === 'Concílio' ? 'CONCÍLIO' : ev.local;
 
         const eventData: any = {
           userId: user.id,
@@ -252,7 +253,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                     <input
                       type="text"
                       required
-                      disabled={ev.type === 'Férias'}
+                      disabled={ev.type === 'Férias' || ev.type === 'Concílio'}
                       value={ev.local}
                       onChange={(e) => handleUpdateEvent(ev._localId, 'local', e.target.value)}
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm text-neutral-700 disabled:bg-neutral-100 disabled:text-neutral-500"
