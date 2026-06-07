@@ -45,6 +45,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
           clubNames: new Set<string>(),
           visitedNames: new Set<string>(),
           timeFrames: new Set<string>(),
+          types: new Set<string>(),
           createdAt: e.createdAt,
         });
       }
@@ -58,6 +59,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
         group.timeFrames.add(e.timeFrame);
       }
+      group.types.add(e.type);
     });
 
     return Array.from(grouped.values()).sort((a: any, b: any) => {
@@ -67,7 +69,11 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
     });
   };
 
-  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'PG'].includes(e.type)));
+  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'Concílio', 'PG'].includes(e.type)));
+  const aventureirosEvents = groupEvents(events.filter(e => e.type === 'Aventureiros'));
+  const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa ceia'));
+  const pgpEvents = groupEvents(events.filter(e => e.type === 'PGP'));
+  const familiaEvents = groupEvents(events.filter(e => e.type === 'Família'));
   const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação'));
   const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' || e.type === 'Comissão/Reunião'));
   
@@ -98,7 +104,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       </div>
 
       {/* Table 1: Agenda Geral */}
-      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('PG')) && geralEvents.length > 0 && (
+      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG')) && geralEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">ESCALA DE PREGAÇÃO / VISITA DBV</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
@@ -121,6 +127,98 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
             ))}
           </tbody>
         </table>
+        </div>
+      )}
+
+      {/* Tabela: Família */}
+      {selectedTypes.includes('Família') && familiaEvents.length > 0 && (
+        <div className="mb-12 break-inside-avoid">
+          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">FAMÍLIA</h4>
+          <table className="w-full table-fixed text-base border-collapse border border-black">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black px-2 py-1.5 text-center w-[30%]">DATA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-[70%]">IGREJA / LOCAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {familiaEvents.map((e: any, index) => (
+                <tr key={`familia-${index}`}>
+                  <td className="border border-black px-2 py-1.5 text-center">{e.dateLabel}</td>
+                  <td className="border border-black px-2 py-1.5 text-center font-medium">{e.local}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Tabela: PGP */}
+      {selectedTypes.includes('PGP') && pgpEvents.length > 0 && (
+        <div className="mb-12 break-inside-avoid">
+          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">PGP</h4>
+          <table className="w-full table-fixed text-base border-collapse border border-black">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black px-2 py-1.5 text-center w-[30%]">DATA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-[70%]">IGREJA / LOCAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pgpEvents.map((e: any, index) => (
+                <tr key={`pgp-${index}`}>
+                  <td className="border border-black px-2 py-1.5 text-center">{e.dateLabel}</td>
+                  <td className="border border-black px-2 py-1.5 text-center font-medium">{e.local}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Tabela: Aventureiros */}
+      {selectedTypes.includes('Aventureiros') && aventureirosEvents.length > 0 && (
+        <div className="mb-12 break-inside-avoid">
+          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">AVENTUREIROS</h4>
+          <table className="w-full table-fixed text-base border-collapse border border-black">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black px-2 py-1.5 text-center w-[30%]">DATA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-[70%]">IGREJA / LOCAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {aventureirosEvents.map((e: any, index) => (
+                <tr key={`aventureiros-${index}`}>
+                  <td className="border border-black px-2 py-1.5 text-center">{e.dateLabel}</td>
+                  <td className="border border-black px-2 py-1.5 text-center font-medium">{e.local}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Tabela: Santa ceia */}
+      {selectedTypes.includes('Santa ceia') && santaCeiaEvents.length > 0 && (
+        <div className="mb-12 break-inside-avoid">
+          <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">SANTA CEIA</h4>
+          <table className="w-full table-fixed text-base border-collapse border border-black">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black px-2 py-1.5 text-center w-[30%]">DATA</th>
+                <th className="border border-black px-2 py-1.5 text-center w-[70%]">IGREJA / LOCAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {santaCeiaEvents.map((e: any, index) => (
+                <tr key={`santaceia-${index}`}>
+                  <td className="border border-black px-2 py-1.5 text-center">{e.dateLabel}</td>
+                  <td className="border border-black px-2 py-1.5 text-center font-medium">{e.local}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
