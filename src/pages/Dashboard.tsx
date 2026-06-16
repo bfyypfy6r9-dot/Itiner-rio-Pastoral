@@ -7,12 +7,14 @@ import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LogOut, Printer, Calendar as CalendarIcon, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import CalendarGrid from '../components/CalendarGrid';
 import EventModal from '../components/EventModal';
 import PrintTemplate from '../components/PrintTemplate';
 import DayDetailsModal from '../components/DayDetailsModal';
 
 export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout: () => void }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'calendar' | 'pdf' | 'view'>('calendar');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG', 'Aventureiros', 'Santa ceia', 'PGP', 'Concílio', 'Família'];
@@ -509,6 +511,186 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     }
   };
 
+  const handlePrintPersonalizado = async () => {
+    try {
+      const doc = new jsPDF({ format: 'a4', unit: 'mm', orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const monthName = format(currentDate, 'MMMM', { locale: ptBR }).toUpperCase();
+      const year = format(currentDate, 'yyyy');
+
+      const azulEscuro = '#0a1f44';
+      const cinzaClaro = '#e6e6e6';
+
+      // 1. Barra Lateral Esquerda
+      const sidebarWidth = 25; // Mais larga
+      doc.setFillColor(cinzaClaro);
+      doc.rect(0, 0, sidebarWidth, pageHeight, 'F');
+
+      // 1.5. Marca Azul no Canto Superior Direito (Arredondada e Sutil)
+      doc.setFillColor(azulEscuro);
+      doc.roundedRect(pageWidth - 28, -12, 38, 38, 10, 10, 'F');
+
+      // 2. Logomarca
+      try {
+        const logoUrl = '/logo-iasd.png';
+        const img = new Image();
+        img.src = logoUrl;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        
+        const logoWidth = 18;
+        const logoHeight = 18;
+        const logoX = (sidebarWidth - logoWidth) / 2;
+        const logoY = 10;
+        doc.addImage(img, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      } catch (e) {
+        console.warn('Logo não carregou', e);
+      }
+
+      // 3. Texto Lateral Esquerdo e Título ('AGENDA / MENSAL')
+      doc.setTextColor(azulEscuro);
+      doc.setFont(undefined, "bolditalic");
+      doc.setFontSize(58); // Tamanho Gigante
+      
+      // Calcula centralização vertical de 'AGENDA'
+      const agendaWidth = doc.getTextWidth('AGENDA');
+      const startYAgenda = ((pageHeight + agendaWidth) / 2) + 40; // Descendo ~40 unidades (~4cm)
+      
+      // Escreve 'AGENDA' na barra cinza
+      doc.text('AGENDA', sidebarWidth / 2 + 7, startYAgenda, { angle: 90 });
+      
+      // Calcula o deslocamento do 'N' (largura aproximada de 'AGE')
+      const offsetN = doc.getTextWidth('AGE');
+      
+      // Escreve 'MENSAL' fora da barra cinza, alinhado com o 'N' de 'AGENDA'
+      doc.text('MENSAL', sidebarWidth + 14, startYAgenda - offsetN, { angle: 90 });
+
+      // 4. Cabeçalho Central
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(20);
+      const headerX = sidebarWidth + ((pageWidth - sidebarWidth - 20) / 2);
+      doc.text('IGREJA ADVENTISTA DO 7º DIA', headerX, 10, { align: 'center' });
+      doc.setFontSize(14);
+      const distritoStr = config.district ? config.district.toUpperCase() : 'NÃO INFORMADO';
+      doc.text(`ITINERÁRIO - DISTRITO ${distritoStr}`, headerX, 16, { align: 'center' });
+
+      // 5. Mês Lateral Direito (Vertical, Vazado)
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(65); // Tamanho grande para mês lateral
+      
+      const monthWidth = doc.getTextWidth(monthName);
+      const startYMonth = (pageHeight + monthWidth) / 2;
+
+      doc.setDrawColor(azulEscuro);
+      doc.setLineWidth(0.2); // Linhas do contorno mais finas e elegantes
+      try {
+         // Tenta usar stroke (vazado)
+         doc.setTextColor(255, 255, 255);
+         doc.text(monthName, pageWidth + 1, startYMonth, { angle: 90, renderingMode: 'stroke' } as any);
+      } catch(e) {
+         // Fallback se stroke falhar
+         doc.setTextColor(azulEscuro);
+         doc.text(monthName, pageWidth + 1, startYMonth, { angle: 90 });
+      }
+
+      // 6. Tabela Principal (Calendário)
+      const start = startOfMonth(currentDate);
+      const end = endOfMonth(currentDate);
+      const days = eachDayOfInterval({ start, end });
+      
+      const calendarData: any[][] = [];
+      let currentWeek: any[] = Array(7).fill('');
+
+      days.forEach((day, index) => {
+        const dayNum = format(day, 'd');
+        const dayStr = format(day, 'yyyy-MM-dd');
+        const dayEvents = events.filter(e => e.date === dayStr && selectedTypes.includes(e.type)).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        let cellText = dayNum;
+        if(dayEvents.length > 0) {
+           const eventsStr = dayEvents.map(e => {
+             let details = e.local ? `\n  (${e.local})` : '';
+             if (e.clubName) details += `\n  ${e.clubName}`;
+             if (e.visitedName) details += `\n  ${e.visitedName}`;
+             if (e.timeFrame) details += `\n  ${e.timeFrame}`;
+             return `- ${e.type}${details}`;
+           }).join('\n');
+           cellText += '\n\n' + eventsStr;
+        }
+
+        const dayOfWeek = day.getDay();
+        currentWeek[dayOfWeek] = { content: cellText };
+
+        if (dayOfWeek === 6 || index === days.length - 1) {
+          calendarData.push([...currentWeek]);
+          currentWeek = Array(7).fill('');
+        }
+      });
+
+      const tableBody = calendarData.map(week => week.map(d => d ? d.content : ''));
+
+      const tableMarginLeft = sidebarWidth + 17; // Margem colada em MENSAL
+      const tableMarginRight = 15; // Espaço mais reduzido e colado com o mês
+      const tableWidthRaw = pageWidth - tableMarginLeft - tableMarginRight; // 100% do espaço livre
+      const colWidth = tableWidthRaw / 7; // Distribuído igualmente
+
+      // Calcula a altura da célula para esticar até o fim da página dinamicamente
+      const tableStartY = 20; 
+      const tableHeadHeight = 8;
+      const bottomMargin = 15;
+      const availableHeight = pageHeight - tableStartY - tableHeadHeight - bottomMargin;
+      const dynamicCellHeight = availableHeight / calendarData.length;
+
+      autoTable(doc, {
+        startY: tableStartY,
+        margin: { left: tableMarginLeft, right: tableMarginRight, bottom: 2 },
+        tableLayout: 'fixed',
+        head: [['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO']],
+        body: tableBody,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: azulEscuro, 
+          textColor: '#ffffff', 
+          fontStyle: 'bold', 
+          halign: 'center', 
+          valign: 'middle',
+          cellPadding: { top: 2, right: 2, bottom: 2, left: 2 } // Barra mais fina
+        },
+        bodyStyles: { minCellHeight: dynamicCellHeight },
+        columnStyles: {
+          0: { cellWidth: colWidth },
+          1: { cellWidth: colWidth },
+          2: { cellWidth: colWidth },
+          3: { cellWidth: colWidth },
+          4: { cellWidth: colWidth },
+          5: { cellWidth: colWidth },
+          6: { cellWidth: colWidth }
+        },
+        styles: { fontSize: 8, valign: 'top', halign: 'left', cellPadding: 2, overflow: 'linebreak' },
+      });
+
+      const fileName = `itinerario_personalizado_${format(currentDate, 'MM_yyyy')}.pdf`;
+      try {
+        doc.save(fileName);
+      } catch(e) {
+        console.warn('Doc save failed', e);
+      }
+      
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const a = window.document.createElement('a');
+      a.href = pdfUrl;
+      a.download = fileName;
+      a.target = '_blank';
+      a.click();
+    } catch (err: any) {
+      console.error('Erro ao gerar PDF personalizado:', err);
+      alert('Erro ao tentar gerar o PDF personalizado.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-20 print:bg-white print:pb-0">
@@ -520,25 +702,35 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
             <span className="font-semibold text-neutral-800">Itinerário Pastoral</span>
             {user.isMock && <span className="ml-2 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded uppercase tracking-wider">Modo Teste</span>}
           </div>
-          <button 
-            onClick={async () => {
-              setIsLoggingOut(true);
-              try {
-                await onLogout();
-              } finally {
-                setIsLoggingOut(false);
-              }
-            }} 
-            disabled={isLoggingOut}
-            className="text-neutral-500 hover:text-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
-          >
-            {isLoggingOut ? (
-              <div className="w-4 h-4 border-2 border-neutral-500 border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <LogOut className="w-4 h-4" />
+          <div className="flex items-center gap-4">
+            {(user.isAdmin || user.role === 'admin') && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="text-indigo-600 hover:text-indigo-800 flex items-center gap-2 text-sm font-medium transition-colors"
+              >
+                Gerenciar Usuários
+              </button>
             )}
-            {isLoggingOut ? 'Saindo...' : 'Sair'}
-          </button>
+            <button 
+              onClick={async () => {
+                setIsLoggingOut(true);
+                try {
+                  await onLogout();
+                } finally {
+                  setIsLoggingOut(false);
+                }
+              }} 
+              disabled={isLoggingOut}
+              className="text-neutral-500 hover:text-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+            >
+              {isLoggingOut ? (
+                <div className="w-4 h-4 border-2 border-neutral-500 border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <LogOut className="w-4 h-4" />
+              )}
+              {isLoggingOut ? 'Saindo...' : 'Sair'}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -680,9 +872,12 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
                </div>
              </div>
 
-             <div className="flex justify-end mb-8 pt-6 border-t border-neutral-100">
+             <div className="flex justify-end gap-3 mb-8 pt-6 border-t border-neutral-100">
                <button onClick={handlePrint} className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                 <Printer className="w-4 h-4" /> Gerar PDF
+                 <Printer className="w-4 h-4" /> Gerar PDF Clássico
+               </button>
+               <button onClick={handlePrintPersonalizado} className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                 <CalendarIcon className="w-4 h-4" /> Gerar PDF Personalizado
                </button>
              </div>
              {/* Readonly View for the UI */}
