@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { auth, isFirebaseConfigured } from '../lib/firebase';
+import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { BookOpen, LogIn, Calendar, Lock, AlertTriangle } from 'lucide-react';
 import type { AppUser } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,7 +19,9 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
   const [loading, setLoading] = useState(false);
   const {  } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setLoading(true);
@@ -30,18 +33,95 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
          return;
       }
       
-      await signInWithEmailAndPassword(auth, email, password);
+      if (isRegistering) {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        try {
+          let retryCount = 0;
+          let success = false;
+          while (retryCount < 3 && !success) {
+            try {
+              await setDoc(doc(db, 'users', cred.user.uid), {
+                email: cred.user.email || email,
+                role: 'user',
+                status: 'pendente',
+                isAdmin: (cred.user.email || email).toLowerCase() === 'pedrorafaela_araujo@hotmail.com',
+                createdAt: Date.now(),
+                activeSessions: []
+              });
+              success = true;
+            } catch (retryErr) {
+              retryCount++;
+              if (retryCount >= 3) throw retryErr;
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to create user doc eagerly", e);
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
     } catch (err: any) {
       if (err.code === 'auth/operation-not-allowed') {
         setError('O login por E-mail/Senha não está habilitado. Por favor, habilite-o no Console do Firebase.');
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
         setError('Senha ou login errado ou e-mail não cadastrado.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Este e-mail já está em uso.');
       } else {
         setError('Erro de autenticação: ' + (err.message || 'Erro desconhecido'));
       }
       setLoading(false);
     }
   };
+
+  if (user?.isBlocked) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-red-100 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Seu acesso foi bloqueado</h2>
+          <p className="text-neutral-600 mb-8 leading-relaxed">
+            Sua conta foi bloqueada por um administrador.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={onCancelLogin}
+              className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-medium py-3 rounded-lg transition-colors"
+            >
+              Voltar à Página Inicial
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.isPendingApproval) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-indigo-100 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Aguardando liberação do administrador</h2>
+          <p className="text-neutral-600 mb-8 leading-relaxed">
+            Seu cadastro foi realizado com sucesso, mas o acesso completo requer a liberação de um administrador.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={onCancelLogin}
+              className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-medium py-3 rounded-lg transition-colors"
+            >
+              Voltar à Página Inicial
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (user?.needsDeviceReset) {
     return (
@@ -127,14 +207,14 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
       <div className="w-full md:w-[480px] bg-white border-l border-neutral-200 flex flex-col justify-center p-8 md:p-14 shadow-[-10px_0_30px_rgba(0,0,0,0.02)]">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2 mb-2">
-            Acesso Restrito
+            {isRegistering ? 'Criar Nova Conta' : 'Acesso Restrito'}
           </h2>
           <p className="text-neutral-500 text-sm">
-            Entre com suas credenciais de administrador para acessar.
+            {isRegistering ? 'Preencha os dados abaixo. Após o cadastro, aguarde a aprovação do administrador.' : 'Entre com suas credenciais de administrador para acessar.'}
           </p>
         </div>
         
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleAuth} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               E-mail
@@ -174,9 +254,22 @@ export default function LandingPage({ user, onResetDevices, onCancelLogin }: Lan
             disabled={loading}
             className="w-full bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition-colors mt-2"
           >
-            {loading ? 'Autenticando...' : 'Entrar na Plataforma'}
+            {loading ? 'Processando...' : isRegistering ? 'Criar Conta' : 'Entrar na Plataforma'}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setError('');
+            }}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            {isRegistering ? 'Já possui uma conta? Faça login.' : 'Não tem uma conta? Crie uma aqui.'}
+          </button>
+        </div>
       </div>
     </div>
   );
