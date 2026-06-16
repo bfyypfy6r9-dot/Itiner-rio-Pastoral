@@ -14,7 +14,22 @@ interface Props {
   onClose: (shouldReload?: boolean) => void;
 }
 
-const EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG', 'Aventureiros', 'Santa ceia', 'PGP', 'Concílio', 'Família'];
+const EVENT_TYPES: EventType[] = [
+  'Atividades administrativas',
+  'Aventureiros',
+  'Concílio',
+  'Desbravador',
+  'Família',
+  'Férias',
+  'PG',
+  'PGP',
+  'Planejamento e estudo',
+  'Pregação',
+  'Reunião/comissão',
+  'Santa Ceia',
+  'Visitação',
+  'Outros'
+];
 
 interface EventFormState {
   _localId: string;
@@ -24,6 +39,8 @@ interface EventFormState {
   clubName: string;
   visitedName: string;
   timeFrame: string;
+  turno?: 'Manhã' | 'Tarde' | 'Noite' | '';
+  horario?: string;
   isDeleted: boolean;
   createdAt: number;
 }
@@ -35,17 +52,28 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
 
   useEffect(() => {
     if (events.length > 0) {
-      setDayEvents(events.map(e => ({
+      setDayEvents(events.map(e => {
+        let typeVal = e.type;
+        if (typeVal === 'Comissão') typeVal = 'Reunião/comissão';
+        if (typeVal === 'Comissão/Reunião') typeVal = 'Reunião/comissão';
+        if (typeVal === 'Desbravadores') typeVal = 'Desbravador';
+        if (typeVal === 'Planejamento e Estudo') typeVal = 'Planejamento e estudo';
+        if (typeVal === 'Santa ceia') typeVal = 'Santa Ceia';
+        if (typeVal === 'Outro') typeVal = 'Outros';
+        
+        return {
         _localId: crypto.randomUUID(),
         id: e.id,
-        type: e.type === 'Comissão' ? 'Comissão/Reunião' : e.type,
+        type: typeVal as EventType,
         local: (e.local === 'FÉRIAS' && e.type !== 'Férias') || (e.local === 'CONCÍLIO' && e.type !== 'Concílio') || (e.local === 'FAMILIA' && e.type !== 'Família') ? '' : (e.local || ''),
         clubName: e.clubName || '',
         visitedName: e.visitedName || '',
         timeFrame: e.timeFrame || '',
+        turno: e.turno || '',
+        horario: e.horario || '',
         isDeleted: false,
         createdAt: e.createdAt
-      })));
+      }}));
     } else {
       setDayEvents([{
         _localId: crypto.randomUUID(),
@@ -54,6 +82,8 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
         clubName: '',
         visitedName: '',
         timeFrame: '',
+        turno: '',
+        horario: '',
         isDeleted: false,
         createdAt: Date.now()
       }]);
@@ -70,6 +100,8 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       clubName: '',
       visitedName: '',
       timeFrame: '',
+      turno: '',
+      horario: '',
       isDeleted: false,
       createdAt: Date.now()
     }]);
@@ -88,7 +120,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
       } else if (field === 'type' && (ev.type === 'Férias' || ev.type === 'Concílio' || ev.type === 'Família') && value !== 'Férias' && value !== 'Concílio' && value !== 'Família') {
         updated.local = '';
       }
-      if (field === 'type' && value === 'Desbravadores') {
+      if (field === 'type' && value === 'Desbravador') {
         updated.local = '';
       }
       return updated;
@@ -106,8 +138,8 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
     // Check validation first
     const invalidEvents = dayEvents.filter(ev => {
       if (!ev.isDeleted) {
-        if (!ev.local && !['Férias', 'Concílio', 'Família', 'Desbravadores'].includes(ev.type)) return true;
-        if (ev.type === 'Desbravadores' && !ev.clubName) return true;
+        if (!ev.local && !['Férias', 'Concílio', 'Família', 'Desbravador'].includes(ev.type)) return true;
+        if (ev.type === 'Desbravador' && !ev.clubName) return true;
       }
       return false;
     });
@@ -154,9 +186,11 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
           createdAt: ev.createdAt || Date.now(),
         };
 
-        if (ev.type === 'Desbravadores' && ev.clubName) eventData.clubName = ev.clubName;
+        if (ev.type === 'Desbravador' && ev.clubName) eventData.clubName = ev.clubName;
         if (ev.type === 'Visitação' && ev.visitedName) eventData.visitedName = ev.visitedName;
-        if ((ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão/Reunião') && ev.timeFrame) eventData.timeFrame = ev.timeFrame;
+        if (ev.timeFrame) eventData.timeFrame = ev.timeFrame;
+        if (ev.turno) eventData.turno = ev.turno;
+        if (ev.horario) eventData.horario = ev.horario;
 
         if (user.isMock) {
           const mockData = { ...eventData, id: ev.id || crypto.randomUUID() };
@@ -247,7 +281,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                   </select>
                 </div>
 
-                {ev.type !== 'Desbravadores' && (
+                {ev.type !== 'Desbravador' && (
                   <div>
                     <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
                       Igreja / Local
@@ -264,7 +298,7 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                   </div>
                 )}
 
-                {ev.type === 'Desbravadores' && (
+                {ev.type === 'Desbravador' && (
                   <div className="animate-in fade-in">
                     <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
                       Clube de Desbravadores
@@ -294,10 +328,39 @@ export default function EventModal({ isOpen, date, events, user, onClose }: Prop
                   </div>
                 )}
 
-                {(ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão/Reunião') && (
+                <div className="grid grid-cols-2 gap-3 pb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
+                      Turno (Opcional)
+                    </label>
+                    <select
+                      value={ev.turno || ''}
+                      onChange={(e) => handleUpdateEvent(ev._localId, 'turno', e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm font-medium text-neutral-700"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Manhã">Manhã</option>
+                      <option value="Tarde">Tarde</option>
+                      <option value="Noite">Noite</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
+                      Horário (Opcional)
+                    </label>
+                    <input
+                      type="time"
+                      value={ev.horario || ''}
+                      onChange={(e) => handleUpdateEvent(ev._localId, 'horario', e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm text-neutral-700"
+                    />
+                  </div>
+                </div>
+
+                {(ev.type === 'Planejamento e estudo' || ev.type === 'Reunião/comissão') && (
                   <div className="animate-in fade-in">
                     <label className="block text-xs font-medium text-neutral-500 mb-1 uppercase tracking-wider">
-                      Horário
+                      Detalhe de horário extra (antigo)
                     </label>
                     <input
                       type="text"
