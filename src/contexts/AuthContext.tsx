@@ -84,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                updateDoc(userDocRef, { activeSessions: arrayUnion(deviceId) }).catch(e => console.warn(e));
              }
              setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isAdmin, role: userData.role, status: 'ativo' });
+             setLoading(false);
              return;
            } else if (userDocSnap) {
              // We KNOW the document doesn't exist yet, it's safe to create.
