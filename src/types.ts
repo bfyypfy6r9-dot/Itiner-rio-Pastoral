@@ -1,4 +1,6 @@
-export type EventType = 'Pregação' | 'Desbravadores' | 'Visitação' | 'Comissão' | 'Comissão/Reunião' | 'Férias' | 'Planejamento e Estudo' | 'PG' | 'Aventureiros' | 'Santa ceia' | 'PGP' | 'Concílio' | 'Família';
+export type EventType = 'Atividades administrativas' | 'Aventureiros' | 'Concílio' | 'Desbravador' | 'Família' | 'Férias' | 'Outros' | 'PG' | 'PGP' | 'Planejamento e estudo' | 'Pregação' | 'Reunião/comissão' | 'Santa Ceia' | 'Visitação' | 'Comissão' | 'Comissão/Reunião' | 'Desbravadores' | 'Planejamento e Estudo' | 'Santa ceia' | 'Outro';
+
+export type Turno = 'Manhã' | 'Tarde' | 'Noite';
 
 export interface PastorConfig {
   name: string;
@@ -19,6 +21,8 @@ export interface PastelEvent {
   clubName?: string;
   visitedName?: string;
   timeFrame?: string;
+  turno?: Turno;
+  horario?: string;
   createdAt: number;
 }
 
@@ -27,4 +31,9 @@ export interface AppUser {
   email: string;
   isMock?: boolean;
   needsDeviceReset?: boolean;
+  isAdmin?: boolean;
+  role?: string;
+  isPendingApproval?: boolean;
+  isBlocked?: boolean;
+  status?: string;
 }
