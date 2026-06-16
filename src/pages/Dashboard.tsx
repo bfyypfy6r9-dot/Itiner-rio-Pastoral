@@ -639,7 +639,6 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       autoTable(doc, {
         startY: tableStartY,
         margin: { left: tableMarginLeft, right: tableMarginRight, bottom: 2 },
-        tableLayout: 'fixed',
         head: [['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO']],
         body: tableBody,
         theme: 'grid',
