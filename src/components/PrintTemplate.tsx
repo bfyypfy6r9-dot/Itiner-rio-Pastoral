@@ -29,7 +29,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       let key = `${e.date}|${safeLocal.toLowerCase()}`;
       
       // se é desbravadores, tenta sempre atrelar ao primeiro evento do dia (preferencialmente pregação)
-      if (e.type === 'Desbravadores' || !safeLocal) {
+      if (e.type === 'Desbravador' || !safeLocal) {
          const existingKey = Array.from(grouped.keys()).find(k => k.startsWith(`${e.date}|`));
          if (existingKey) {
             key = existingKey;
@@ -50,13 +50,13 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
         });
       }
       const group = grouped.get(key);
-      if (e.type === 'Desbravadores' && e.clubName) {
+      if (e.type === 'Desbravador' && e.clubName) {
         group.clubNames.add(e.clubName);
       }
       if (e.type === 'Visitação' && e.visitedName) {
         group.visitedNames.add(e.visitedName);
       }
-      if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
+      if ((e.type === 'Planejamento e estudo' || e.type === 'Comissão' || e.type === 'Reunião/comissão') && e.timeFrame) {
         group.timeFrames.add(e.timeFrame);
       }
       group.types.add(e.type);
@@ -69,17 +69,17 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
     });
   };
 
-  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'Concílio', 'PG'].includes(e.type)));
+  const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravador', 'Férias', 'Concílio', 'PG'].includes(e.type)));
   const aventureirosEvents = groupEvents(events.filter(e => e.type === 'Aventureiros'));
-  const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa ceia'));
+  const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa Ceia'));
   const pgpEvents = groupEvents(events.filter(e => e.type === 'PGP'));
   const familiaEvents = groupEvents(events.filter(e => e.type === 'Família'));
   const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação'));
-  const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' || e.type === 'Comissão/Reunião'));
+  const comissaoEvents = groupEvents(events.filter(e => e.type === 'Comissão' || e.type === 'Reunião/comissão'));
   
   // Filtro Isolado Exclusivo
   const planejamentoEvents = events
-    .filter(e => e.type === 'Planejamento e Estudo')
+    .filter(e => e.type === 'Planejamento e estudo')
     .sort((a, b) => {
       const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
       return timeDiff === 0 ? (a.createdAt - b.createdAt) : timeDiff;
@@ -104,7 +104,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       </div>
 
       {/* Table 1: Agenda Geral */}
-      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG')) && geralEvents.length > 0 && (
+      {(selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravador') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG')) && geralEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">ESCALA DE PREGAÇÃO / VISITA DBV</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
@@ -199,8 +199,8 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
         </div>
       )}
 
-      {/* Tabela: Santa ceia */}
-      {selectedTypes.includes('Santa ceia') && santaCeiaEvents.length > 0 && (
+      {/* Tabela: Santa Ceia */}
+      {selectedTypes.includes('Santa Ceia') && santaCeiaEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">SANTA CEIA</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
@@ -248,7 +248,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       )}
 
       {/* Table 3: Comissões */}
-      {selectedTypes.includes('Comissão/Reunião') && comissaoEvents.length > 0 && (
+      {selectedTypes.includes('Reunião/comissão') && comissaoEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">COMISSÃO/REUNIÃO</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
@@ -273,7 +273,7 @@ export default function PrintTemplate({ currentDate, events, config, selectedTyp
       )}
 
       {/* Table 4: Planejamento e Estudo */}
-      {selectedTypes.includes('Planejamento e Estudo') && planejamentoEvents.length > 0 && (
+      {selectedTypes.includes('Planejamento e estudo') && planejamentoEvents.length > 0 && (
         <div className="mb-12 break-inside-avoid">
           <h4 className="font-bold text-[1.1rem] mb-2 uppercase text-center">ROTINA DE PLANEJAMENTO E ESTUDO</h4>
           <table className="w-full table-fixed text-base border-collapse border border-black">
