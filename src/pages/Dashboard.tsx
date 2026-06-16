@@ -17,7 +17,22 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'calendar' | 'pdf' | 'view'>('calendar');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const ALL_EVENT_TYPES: EventType[] = ['Pregação', 'Desbravadores', 'Visitação', 'Comissão/Reunião', 'Férias', 'Planejamento e Estudo', 'PG', 'Aventureiros', 'Santa ceia', 'PGP', 'Concílio', 'Família'];
+  const ALL_EVENT_TYPES: EventType[] = [
+    'Atividades administrativas',
+    'Aventureiros',
+    'Concílio',
+    'Desbravador',
+    'Família',
+    'Férias',
+    'PG',
+    'PGP',
+    'Planejamento e estudo',
+    'Pregação',
+    'Reunião/comissão',
+    'Santa Ceia',
+    'Visitação',
+    'Outros'
+  ];
   const [selectedTypes, setSelectedTypes] = useState<EventType[]>(ALL_EVENT_TYPES);
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -156,7 +171,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
         let key = `${e.date}|${safeLocal.toLowerCase()}`;
         
         // se é desbravadores, tenta sempre atrelar ao primeiro evento do dia (preferencialmente pregação)
-        if (e.type === 'Desbravadores' || !safeLocal) {
+        if (e.type === 'Desbravador' || !safeLocal) {
            const existingKey = Array.from(grouped.keys()).find(k => k.startsWith(`${e.date}|`));
            if (existingKey) {
               key = existingKey;
@@ -177,13 +192,13 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
           });
         }
         const group = grouped.get(key);
-        if (e.type === 'Desbravadores' && e.clubName) {
+        if (e.type === 'Desbravador' && e.clubName) {
           group.clubNames.add(e.clubName);
         }
         if (e.type === 'Visitação' && e.visitedName) {
           group.visitedNames.add(e.visitedName);
         }
-        if ((e.type === 'Planejamento e Estudo' || e.type === 'Comissão' || e.type === 'Comissão/Reunião') && e.timeFrame) {
+        if ((e.type === 'Planejamento e estudo' || e.type === 'Comissão' || e.type === 'Reunião/comissão') && e.timeFrame) {
           group.timeFrames.add(e.timeFrame);
         }
         group.types.add(e.type);
@@ -195,17 +210,17 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       });
     };
 
-    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravadores', 'Férias', 'Concílio', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
+    const geralEvents = groupEvents(events.filter(e => ['Pregação', 'Desbravador', 'Férias', 'Concílio', 'PG'].includes(e.type) && selectedTypes.includes(e.type)));
     const aventureirosEvents = groupEvents(events.filter(e => e.type === 'Aventureiros' && selectedTypes.includes(e.type)));
-    const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa ceia' && selectedTypes.includes(e.type)));
+    const santaCeiaEvents = groupEvents(events.filter(e => e.type === 'Santa Ceia' && selectedTypes.includes(e.type)));
     const pgpEvents = groupEvents(events.filter(e => e.type === 'PGP' && selectedTypes.includes(e.type)));
     const familiaEvents = groupEvents(events.filter(e => e.type === 'Família' && selectedTypes.includes(e.type)));
     const visitacaoEvents = groupEvents(events.filter(e => e.type === 'Visitação' && selectedTypes.includes(e.type)));
-    const comissaoEvents = groupEvents(events.filter(e => (e.type === 'Comissão' || e.type === 'Comissão/Reunião') && selectedTypes.includes('Comissão/Reunião')));
+    const comissaoEvents = groupEvents(events.filter(e => (e.type === 'Comissão' || e.type === 'Reunião/comissão') && selectedTypes.includes('Reunião/comissão')));
     
     // Filtro Isolado Exclusivo
     const planejamentoEvents = events
-      .filter(e => e.type === 'Planejamento e Estudo' && selectedTypes.includes(e.type))
+      .filter(e => e.type === 'Planejamento e estudo' && selectedTypes.includes(e.type))
       .sort((a, b) => {
         const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         return timeDiff === 0 ? ((a.createdAt || 0) - (b.createdAt || 0)) : timeDiff;
@@ -234,7 +249,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     finalY += 10;
 
     // Tabela 1: Geral
-    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravadores') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG');
+    const showTabelaGeral = selectedTypes.includes('Pregação') || selectedTypes.includes('Desbravador') || selectedTypes.includes('Férias') || selectedTypes.includes('Concílio') || selectedTypes.includes('PG');
     if (showTabelaGeral && geralEvents.length > 0) {
       doc.setFontSize(12);
       doc.setFont("times", "bold");
@@ -346,8 +361,8 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
        finalY = (doc as any).lastAutoTable.finalY + 10;
     }
 
-    // Tabela: Santa ceia
-    if (selectedTypes.includes('Santa ceia') && santaCeiaEvents.length > 0) {
+    // Tabela: Santa Ceia
+    if (selectedTypes.includes('Santa Ceia') && santaCeiaEvents.length > 0) {
        doc.setFontSize(12);
        doc.setFont("times", "bold");
        doc.text("SANTA CEIA", centerX, finalY, { align: 'center' });
@@ -403,7 +418,7 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
     }
 
     // Tabela 3: Comissões
-    if (selectedTypes.includes('Comissão/Reunião') && comissaoEvents.length > 0) {
+    if (selectedTypes.includes('Reunião/comissão') && comissaoEvents.length > 0) {
        doc.setFontSize(12);
        doc.setFont("times", "bold");
        doc.text("COMISSÃO/REUNIÃO", centerX, finalY, { align: 'center' });
@@ -599,7 +614,29 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
       days.forEach((day, index) => {
         const dayNum = format(day, 'd');
         const dayStr = format(day, 'yyyy-MM-dd');
-        const dayEvents = events.filter(e => e.date === dayStr && selectedTypes.includes(e.type)).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const turnoOrder: Record<string, number> = { 'Manhã': 1, 'Tarde': 2, 'Noite': 3 };
+
+        const dayEvents = events.filter(e => e.date === dayStr && selectedTypes.includes(e.type)).sort((a,b) => {
+          // 1. Horário definido (ambos têm)
+          if (a.horario && b.horario) {
+             return a.horario.localeCompare(b.horario);
+          }
+          // 2. A tem horário e B não tem (A vem primeiro)
+          if (a.horario && !b.horario) return -1;
+          // 3. B tem horário e A não tem (B vem primeiro)
+          if (!a.horario && b.horario) return 1;
+
+          // 4. Nenhum tem horário, verifica turno
+          const aTurnoOrdem = a.turno ? turnoOrder[a.turno] : 99;
+          const bTurnoOrdem = b.turno ? turnoOrder[b.turno] : 99;
+          
+          if (aTurnoOrdem !== bTurnoOrdem) {
+             return aTurnoOrdem - bTurnoOrdem;
+          }
+
+          // 5. Nenhum tem turno nem horário (ou são do mesmo turno)
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        });
 
         let cellText = dayNum;
         if(dayEvents.length > 0) {
@@ -608,7 +645,17 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
              if (e.clubName) details += `\n  ${e.clubName}`;
              if (e.visitedName) details += `\n  ${e.visitedName}`;
              if (e.timeFrame) details += `\n  ${e.timeFrame}`;
-             return `- ${e.type}${details}`;
+             
+             let prefix = '';
+             if (e.horario) {
+               prefix = `${e.horario} - `;
+             } else if (e.turno) {
+               prefix = `(${e.turno}) `;
+             } else {
+               prefix = `- `;
+             }
+
+             return `${prefix}${e.type}${details}`;
            }).join('\n');
            cellText += '\n\n' + eventsStr;
         }
