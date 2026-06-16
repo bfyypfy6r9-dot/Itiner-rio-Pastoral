@@ -46,19 +46,36 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
             </div>
           ) : (
             <div className="space-y-4">
-              {events.map((ev, index) => (
+              {[...events].sort((a,b) => {
+                const turnoOrder: Record<string, number> = { 'Manhã': 1, 'Tarde': 2, 'Noite': 3 };
+                if (a.horario && b.horario) return a.horario.localeCompare(b.horario);
+                if (a.horario && !b.horario) return -1;
+                if (!a.horario && b.horario) return 1;
+
+                const aTurnoOrdem = a.turno ? turnoOrder[a.turno] : 99;
+                const bTurnoOrdem = b.turno ? turnoOrder[b.turno] : 99;
+                
+                if (aTurnoOrdem !== bTurnoOrdem) return aTurnoOrdem - bTurnoOrdem;
+
+                return (a.createdAt || 0) - (b.createdAt || 0);
+              }).map((ev, index) => (
                 <div key={index} className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 flex flex-col gap-2">
-                  <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    {(ev.horario || ev.turno) && (
+                       <span className="text-sm font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
+                         {ev.horario || ev.turno}
+                       </span>
+                    )}
                     <span className={`px-2.5 py-1 rounded-md text-xs font-semibold
                       ${ev.type === 'Pregação' ? "bg-amber-100 text-amber-800" :
                         (ev.type === 'Férias' || ev.type === 'Concílio') ? "bg-blue-100 text-blue-800" :
-                        ev.type === 'Desbravadores' ? "bg-emerald-100 text-emerald-800" :
+                        ev.type === 'Desbravador' ? "bg-emerald-100 text-emerald-800" :
                         ev.type === 'Visitação' ? "bg-indigo-100 text-indigo-800" :
-                        (ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') ? "bg-cyan-100 text-cyan-800" :
-                        ev.type === 'Planejamento e Estudo' ? "bg-purple-100 text-purple-800" :
+                        (ev.type === 'Comissão' || ev.type === 'Reunião/comissão') ? "bg-cyan-100 text-cyan-800" :
+                        ev.type === 'Planejamento e estudo' ? "bg-purple-100 text-purple-800" :
                         ev.type === 'PG' ? "bg-orange-100 text-orange-800" :
                         ev.type === 'Aventureiros' ? "bg-emerald-100 text-emerald-800" :
-                        ev.type === 'Santa ceia' ? "bg-rose-100 text-rose-800" :
+                        ev.type === 'Santa Ceia' ? "bg-rose-100 text-rose-800" :
                         "bg-neutral-100 text-neutral-800"}`}
                     >
                       {ev.type}
@@ -69,13 +86,13 @@ export default function DayDetailsModal({ isOpen, date, events, onClose }: Props
                     <span className="font-semibold text-neutral-800">{ev.local}</span>
                   </div>
 
-                  {(ev.type === 'Desbravadores' && ev.clubName) || 
+                  {(ev.type === 'Desbravador' && ev.clubName) || 
                    (ev.type === 'Visitação' && ev.visitedName) || 
-                   ((ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') && ev.timeFrame) ? (
+                   ((ev.type === 'Planejamento e estudo' || ev.type === 'Comissão' || ev.type === 'Reunião/comissão') && ev.timeFrame) ? (
                     <div className="text-sm text-neutral-600 bg-white border border-neutral-100 px-3 py-2 rounded-lg mt-1">
-                      {ev.type === 'Desbravadores' && <span className="block"><span className="font-medium">Desbravador:</span> {ev.clubName}</span>}
+                      {ev.type === 'Desbravador' && <span className="block"><span className="font-medium">Desbravador:</span> {ev.clubName}</span>}
                       {ev.type === 'Visitação' && <span className="block"><span className="font-medium">Visitado:</span> {ev.visitedName}</span>}
-                      {(ev.type === 'Planejamento e Estudo' || ev.type === 'Comissão' || ev.type === 'Comissão/Reunião') && <span className="block"><span className="font-medium">Horário:</span> {ev.timeFrame}</span>}
+                      {(ev.type === 'Planejamento e estudo' || ev.type === 'Comissão' || ev.type === 'Reunião/comissão') && <span className="block"><span className="font-medium">Horário (extra):</span> {ev.timeFrame}</span>}
                     </div>
                   ) : null}
                 </div>
