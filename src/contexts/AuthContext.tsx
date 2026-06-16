@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                    role: fallbackIsAdmin ? 'admin' : 'user',
                    isApproved: fallbackIsAdmin, // backwards compatibility
                    isAdmin: fallbackIsAdmin, 
-                   email: firebaseUser.email || fallbackEmail, 
+                   email: firebaseUser.email || userEmailRaw, 
                    createdAt: Date.now() 
                  });
                  success = true;
