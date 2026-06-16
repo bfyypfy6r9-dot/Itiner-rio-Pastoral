@@ -67,7 +67,7 @@ export default function AdminPanel() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [checkingAdmin]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
