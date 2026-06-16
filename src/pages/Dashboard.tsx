@@ -533,19 +533,11 @@ export default function Dashboard({ user, onLogout }: { user: AppUser, onLogout:
 
       // 2. Logomarca
       try {
-        const logoUrl = '/logo-iasd.png';
-        const img = new Image();
-        img.src = logoUrl;
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-        });
-        
         const logoWidth = 18;
         const logoHeight = 18;
         const logoX = (sidebarWidth - logoWidth) / 2;
         const logoY = 10;
-        doc.addImage(img, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        doc.addImage('/logo-iasd.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
       } catch (e) {
         console.warn('Logo não carregou', e);
       }
