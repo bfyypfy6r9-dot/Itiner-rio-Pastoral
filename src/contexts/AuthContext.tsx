@@ -43,28 +43,109 @@ export function AuthProvider({ children }: { children: ReactNode }) {
            const userDocRef = doc(db, 'users', firebaseUser.uid);
            const userDocSnap: any = await Promise.race([
              getDoc(userDocRef),
-             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500))
+             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
            ]).catch(e => {
              console.warn("Could not fetch user document, proceeding with fallback", e);
              return null;
            });
            
            if (userDocSnap && userDocSnap.exists()) {
-             const activeSessions = userDocSnap.data().activeSessions || [];
+             const userData = userDocSnap.data();
+             const activeSessions = userData.activeSessions || [];
+             const userEmail = firebaseUser.email?.toLowerCase() || '';
+             const isAdmin = userData.isAdmin === true || userData.isAdmin === 'true' || userData.role === 'admin' || userData.role === 'Admin' || userEmail === 'pedrorafaela_araujo@hotmail.com';
+             
+             // Backwards compatibility or explicit status
+             let status = userData.status;
+             if (!status) {
+               status = userData.isApproved ? 'ativo' : 'pendente';
+             }
+
+             if (!isAdmin) {
+               if (status === 'pendente') {
+                 setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isPendingApproval: true, isBlocked: false, isAdmin: false, status: 'pendente' });
+                 setLoading(false);
+                 return;
+               } else if (status === 'bloqueado') {
+                 setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isPendingApproval: false, isBlocked: true, isAdmin: false, status: 'bloqueado' });
+                 setLoading(false);
+                 return;
+               }
+             }
+
+             if (!userData.email || userData.email !== firebaseUser.email) {
+               updateDoc(userDocRef, { email: firebaseUser.email || '' }).catch(e => console.warn(e));
+             }
              if (!activeSessions.includes(deviceId) && activeSessions.length >= 3) {
-               setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', needsDeviceReset: true });
+               setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', needsDeviceReset: true, isAdmin, role: userData.role, status: 'ativo' });
                setLoading(false);
                return;
              } else if (!activeSessions.includes(deviceId)) {
                updateDoc(userDocRef, { activeSessions: arrayUnion(deviceId) }).catch(e => console.warn(e));
              }
+             setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isAdmin, role: userData.role, status: 'ativo' });
+             return;
            } else if (userDocSnap) {
-             setDoc(userDocRef, { activeSessions: [deviceId] }, { merge: true }).catch(e => console.warn(e));
+             // We KNOW the document doesn't exist yet, it's safe to create.
+             const userEmailRaw = firebaseUser.email?.toLowerCase() || '';
+             const fallbackIsAdmin = userEmailRaw === 'pedrorafaela_araujo@hotmail.com';
+             const newStatus = fallbackIsAdmin ? 'ativo' : 'pendente';
+             
+             let retryCount = 0;
+             let success = false;
+             while(retryCount < 3 && !success) {
+               try {
+                 await setDoc(userDocRef, { 
+                   activeSessions: [deviceId], 
+                   status: newStatus,
+                   role: fallbackIsAdmin ? 'admin' : 'user',
+                   isApproved: fallbackIsAdmin, // backwards compatibility
+                   isAdmin: fallbackIsAdmin, 
+                   email: firebaseUser.email || fallbackEmail, 
+                   createdAt: Date.now() 
+                 });
+                 success = true;
+               } catch(retryErr) {
+                 retryCount++;
+                 if (retryCount >= 3) throw retryErr;
+                 await new Promise(r => setTimeout(r, 1000));
+               }
+             }
+
+             if (fallbackIsAdmin) {
+               setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isAdmin: true, status: 'ativo' });
+             } else {
+               setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isPendingApproval: true, isBlocked: false, isAdmin: false, status: 'pendente' });
+             }
+             setLoading(false);
+             return;
            }
-           setUser({ id: firebaseUser.uid, email: firebaseUser.email || '' });
+           
+           const fallbackEmail = firebaseUser.email?.toLowerCase() || '';
+           const fallbackIsAdmin = fallbackEmail === 'pedrorafaela_araujo@hotmail.com';
+           
+           // If we timed out (userDocSnap is null) and it's NOT an admin wait... 
+           // we can try to set doc but not overwrite isApproved if it already exists -> use setDoc with merge for just basic fields? 
+           // No, setDoc with merge will overwrite fields if they are in the payload. 
+           // Best not to write if we are unsure if it exists and aren't admin. 
+           
+           if (fallbackIsAdmin) {
+             setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isAdmin: true, status: 'ativo' });
+           } else {
+             setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', isAdmin: false, isPendingApproval: true, isBlocked: false, status: 'pendente' });
+           }
         } catch (e: any) {
            console.error("Device limit check failed", e);
-           setUser({ id: firebaseUser.uid, email: firebaseUser.email || '' }); // fallback
+           const errEmail = firebaseUser.email?.toLowerCase() || '';
+           const isFallbackAdmin = errEmail === 'pedrorafaela_araujo@hotmail.com';
+           setUser({ 
+             id: firebaseUser.uid, 
+             email: firebaseUser.email || '', 
+             isAdmin: isFallbackAdmin, 
+             isPendingApproval: !isFallbackAdmin,
+             isBlocked: false,
+             status: isFallbackAdmin ? 'ativo' : 'pendente'
+           });
         }
       } else {
         setUser(null);
